@@ -12,6 +12,8 @@ import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore
 import { Link } from "react-router-dom";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
+import EmptyState from '../components/EmptyState';
+import DashboardSkeleton from '../components/DashboardSkeleton';
 
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
@@ -86,6 +88,7 @@ const DailyTip = () => {
 
 const Dashboard = () => {
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
+  const isLoading = useRoundStore((state) => state.isLoading);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
     (s) => s.status === "connecting" || s.status === "checking"
@@ -108,8 +111,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current !== null) {
-        clearTimeout(timeoutRef.current);
+      const currentTimeout = timeoutRef.current;
+      if (currentTimeout !== null) {
+        clearTimeout(currentTimeout);
       }
     };
   }, []);
@@ -156,7 +160,9 @@ const Dashboard = () => {
   return (
     <div className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        {!isWalletConnected && (
+        {isLoading && <DashboardSkeleton />}
+
+        {!isLoading && !isWalletConnected && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">
             <p className="leading-relaxed" data-testid="dashboard-wallet-prompt">
               Connect your wallet to submit predictions.
@@ -171,25 +177,31 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
-            <PredictionCard
-              isWalletConnected={isWalletConnected}
-              isRoundActive={isRoundActive}
-              isConnecting={isWalletConnecting}
-              isSubmittingPrediction={isBetModalOpen}
-              onPrediction={handlePrediction}
-            />
-            <DailyTip />
-          </div>
+        {!isLoading && !isRoundActive && (
+          <EmptyState onRefresh={() => { const { fetchActiveRound } = useRoundStore.getState(); void fetchActiveRound(); }} />
+        )}
 
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-              <PriceChart height={280} />
+        {!isLoading && isRoundActive && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
+              <PredictionCard
+                isWalletConnected={isWalletConnected}
+                isRoundActive={isRoundActive}
+                isConnecting={isWalletConnecting}
+                isSubmittingPrediction={isBetModalOpen}
+                onPrediction={handlePrediction}
+              />
+              <DailyTip />
             </div>
-            <PredictionHistory userId={publicKey} />
+
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+                <PriceChart height={280} />
+              </div>
+              <PredictionHistory userId={publicKey} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <BetModal

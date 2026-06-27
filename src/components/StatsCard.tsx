@@ -6,6 +6,7 @@ import type { MockUserStats } from '../types';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
 import { toast } from 'sonner';
+import { formatVXLM } from '../lib/utils';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -83,7 +84,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
         <div className="flex items-center justify-between">
           <dt className="text-sm text-gray-400">Practice Balance</dt>
           <dd className="text-lg font-bold text-cyan-300">
-            {stats.balance.toLocaleString()} vXLM
+            {formatVXLM(stats.balance)}
           </dd>
         </div>
 
@@ -96,7 +97,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           <dt className="text-sm text-gray-400">Correct / Incorrect</dt>
           <dd className="font-semibold text-white">
             <span className="text-green-400">{stats.totalWins}</span>
-            <span className="text-gray-600"> / </span>
+            <span className="text-gray-500"> / </span>
             <span className="text-rose-400">{stats.totalLosses}</span>
           </dd>
         </div>
@@ -137,7 +138,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
       >
         {isClaiming ? 'Claiming...' : 'Claim Rewards'}
       </button>
-      <p className="mt-2 text-center text-xs text-gray-600">
+      <p className="mt-2 text-center text-xs text-gray-400">
         {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
       </p>
     </section>

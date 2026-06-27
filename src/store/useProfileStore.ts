@@ -93,3 +93,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
   },
 }));
+
+useAuthStore.subscribe(
+  (state) => state.jwt,
+  (jwt, prevJwt) => {
+    if (jwt && jwt !== prevJwt) {
+      useProfileStore.getState().loadProfile();
+    }
+  },
+);

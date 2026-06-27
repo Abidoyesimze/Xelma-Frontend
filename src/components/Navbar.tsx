@@ -7,7 +7,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
-import { mockUserStats } from '../data/mockData';
 import Logo from '../assets/logo.svg';
 
 interface NavLinkItem {
@@ -29,10 +28,29 @@ function truncateAddress(key: string): string {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 
+const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
+
+function NetworkBadge() {
+  const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${
+        isMainnet
+          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+          : 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+      }`}
+      aria-label={`Stellar network: ${NETWORK}`}
+    >
+      {isMainnet ? 'Mainnet' : 'Testnet'}
+    </span>
+  );
+}
+
 export default function Navbar() {
   const location = useLocation();
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
   const status = useWalletStore((s) => s.status);
   const connect = useWalletStore((s) => s.connect);
   const checkConnection = useWalletStore((s) => s.checkConnection);
@@ -99,7 +117,7 @@ export default function Navbar() {
                 return (
                   <li key={item.label}>
                     <span
-                      className="cursor-not-allowed rounded-lg px-4 py-2 text-sm font-medium text-gray-600"
+                      className="cursor-not-allowed rounded-lg px-4 py-2 text-sm font-medium text-gray-500"
                       title={item.tooltip}
                     >
                       {item.label}
@@ -128,10 +146,11 @@ export default function Navbar() {
           {/* Desktop Wallet & Mobile Menu Toggle */}
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-3 md:flex">
+              <NetworkBadge />
               {isConnected && publicKey ? (
                 <>
                   <span className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
-                    {mockUserStats.balance.toLocaleString()} vXLM
+                    {balance ?? '…'}
                   </span>
                   <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-gray-300">
                     {truncateAddress(publicKey)}
@@ -193,6 +212,10 @@ export default function Navbar() {
               </button>
             </div>
 
+            <div className="mb-4">
+              <NetworkBadge />
+            </div>
+
             <nav className="flex flex-col gap-4">
               {navLinks.map((item) => {
                 const isActive = location.pathname === item.to;
@@ -200,9 +223,9 @@ export default function Navbar() {
                   return (
                     <span
                       key={item.label}
-                      className="cursor-not-allowed rounded-lg px-4 py-3 text-sm font-medium text-gray-600 bg-white/5"
+                      className="cursor-not-allowed rounded-lg px-4 py-3 text-sm font-medium text-gray-500 bg-white/5"
                     >
-                      {item.label} <span className="text-xs text-gray-500 ml-1">({item.tooltip})</span>
+                      {item.label} <span className="text-xs text-gray-400 ml-1">({item.tooltip})</span>
                     </span>
                   );
                 }
@@ -229,7 +252,7 @@ export default function Navbar() {
                   <div className="flex items-center justify-between px-2">
                     <span className="text-sm text-gray-400">Balance</span>
                     <span className="text-sm font-semibold text-cyan-200">
-                      {mockUserStats.balance.toLocaleString()} vXLM
+                      {balance ?? '…'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between px-2">

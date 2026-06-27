@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useWalletStore } from '../store/useWalletStore';
+import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction } from '../lib/xelma-contract';
 import { predictionsApi } from '../lib/api-client';
@@ -21,24 +21,23 @@ interface BetModalProps {
 type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
 
 export default function BetModal({ isOpen, onClose, predictionData, onSuccess }: BetModalProps) {
-  const status = useWalletStore((s) => s.status);
+  const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const isConnected = status === 'connected' && !!publicKey;
   const initialStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
 
   const [step, setStep] = useState<Step>(initialStep);
   const [errorMsg, setErrorMsg] = useState('');
   const [txHash, setTxHash] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
     if (isOpen) {
-      const currentConnected = status === 'connected' && !!publicKey;
-      const targetStep = (!currentConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+      const targetStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
       setStep(targetStep);
       setErrorMsg('');
       setTxHash('');
@@ -48,16 +47,24 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
   if (!isOpen || !predictionData) return null;
 
   const handleConnectAndAuth = async () => {
+    setIsConnecting(true);
     try {
       await connect();
-      // Auth store logic can follow
+      // Read post-connect state directly from the store to avoid stale closure values
+      const { status, publicKey: pk } = useWalletStore.getState();
+      const { isAuthenticated: ia } = useAuthStore.getState();
+      if (status === 'connected' && pk && ia) {
+        setStep('confirm');
+      }
     } catch (err) {
       console.error('Connection failed:', err);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!publicKey) {
+    if (!publicKey || !isConnected) {
       setStep('wallet_required');
       return;
     }
@@ -128,9 +135,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
             </p>
             <button
               onClick={handleConnectAndAuth}
-              className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition"
+              disabled={isConnecting}
+              className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Connect & Authenticate
+              {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
             </button>
           </div>
         )}
@@ -138,6 +146,24 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
         {step === 'confirm' && (
           <div>
             <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+
+            {/* Inline wallet-disconnect guard — shown reactively if wallet drops mid-session */}
+            {!isConnected && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-400">Wallet disconnected</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Connect your wallet to confirm.</p>
+                </div>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="shrink-0 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-semibold transition hover:bg-[#2C4BFD]/80 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect'}
+                </button>
+              </div>
+            )}
+
             <div className="space-y-3 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6">
               <div className="flex justify-between">
                 <span className="text-gray-400">Mode</span>
@@ -162,9 +188,11 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
                 <span className="font-bold text-cyan-400">{predictionData.stake} XLM</span>
               </div>
             </div>
+
             <button
               onClick={handleConfirm}
-              className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition"
+              disabled={!isConnected}
+              className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
               Confirm
             </button>

@@ -29,10 +29,12 @@ function makeStoreMock(overrides: {
   status?: string;
   publicKey?: string | null;
   isConnecting?: boolean;
+  balance?: string | null;
 }) {
   const state = {
     status: overrides.status ?? 'idle',
     publicKey: overrides.publicKey ?? null,
+    balance: overrides.balance ?? null,
     connect: connectMock,
     checkConnection: checkConnectionMock,
   };
@@ -92,10 +94,11 @@ describe('Navbar', () => {
 
   describe('connected state', () => {
     const publicKey = 'GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRST';
+    const balance = '1,000 vXLM';
 
     beforeEach(() => {
       vi.mocked(useWalletStore).mockImplementation(
-        makeStoreMock({ status: 'connected', publicKey }) as Parameters<typeof vi.mocked>[0],
+        makeStoreMock({ status: 'connected', publicKey, balance }) as Parameters<typeof vi.mocked>[0],
       );
     });
 
@@ -106,9 +109,9 @@ describe('Navbar', () => {
       expect(screen.getAllByText(truncated).length).toBeGreaterThan(0);
     });
 
-    it('shows vXLM balance badge when connected', () => {
+    it('shows balance badge when connected', () => {
       renderNavbar();
-      expect(screen.getAllByText(/vXLM/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/1,000 vXLM/).length).toBeGreaterThan(0);
     });
 
     it('shows "Connected" label on the button when connected', () => {

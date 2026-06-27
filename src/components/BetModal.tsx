@@ -121,7 +121,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       setStep('wallet_required');
       return;
     }
-
+    // Immediately show preparing state before starting async transaction
+    setStep('preparing');
+    // Yield to the event loop so the UI can update before awaiting the contract call
+    await new Promise(resolve => setTimeout(resolve, 0));
     try {
       const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
         setStep(s);

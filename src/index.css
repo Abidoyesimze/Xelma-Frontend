@@ -141,6 +141,11 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Anchor scroll offset for fixed navbar */
+[id] {
+  scroll-margin-top: 80px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -153,5 +158,9 @@ body {
   .status-dot-live,
   .status-dot-red {
     animation: none;
+  }
+
+  html {
+    scroll-behavior: auto !important;
   }
 }

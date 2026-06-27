@@ -7,7 +7,6 @@ rounds that settle trustlessly on-chain via a Soroban smart contract.
 This repository contains the **web client** for Xelma — a React + TypeScript single-page
 application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 
-- **Live app:** https://xelma-frontend.vercel.app
 - **Backend repo:** https://github.com/TevaLabs/Xelma-Backend
 - **Issue tracker:** https://github.com/TevaLabs/Xelma-Frontend/issues
 - **Design reference:** [Figma – Xelma](https://www.figma.com/design/HQp2j9epTTKq6vggiGQRzl/Untitled?node-id=22-685&p=f&t=FZBmcBq74PBjmbF1-0)
@@ -236,11 +235,13 @@ in order — they're ordered from most → least likely.
 
 ### 6. Backend dependency matrix
 
-Frontend features depend on backend endpoints contractually. Edit the matrix in
-[`docs/backend-dependency-matrix.md`](./docs/backend-dependency-matrix.md) (added by
-TevaLabs/Xelma-Frontend#152) whenever a new API endpoint is added or an existing one
-is renamed. Treating that doc as the source of truth is what lets the frontend ship
-without spelunking through the backend repo each time.
+Frontend features depend on backend endpoints contractually. Issue
+[`#152` — Document backend dependency matrix for frontend features](https://github.com/TevaLabs/Xelma-Frontend/issues/152)
+tracks a single source-of-truth doc that lives next to this README. Until that
+lands, treat the API paths called out in [`src/lib/api.ts`](./src/lib/api.ts) and the
+backend repo's OpenAPI spec as the working contract. If a frontend feature ships
+against an endpoint the backend doesn't expose (or vice versa), update both sides
+in the same PR rather than relying on tribal knowledge.
 
 ---
 

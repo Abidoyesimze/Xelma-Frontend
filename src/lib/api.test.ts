@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const clearAuthMock = vi.fn();
+const resetWalletMock = vi.fn();
 const notifyRateLimitedMock = vi.fn();
+const toastErrorMock = vi.fn(() => 'toast-id');
 
 vi.mock('../store/useAuthStore', () => ({
   useAuthStore: {
@@ -9,6 +11,20 @@ vi.mock('../store/useAuthStore', () => ({
       jwt: 'test-jwt',
       clearAuth: clearAuthMock,
     }),
+  },
+}));
+
+vi.mock('../store/useWalletStore', () => ({
+  useWalletStore: {
+    getState: () => ({
+      reset: resetWalletMock,
+    }),
+  },
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: toastErrorMock,
   },
 }));
 
@@ -20,7 +36,9 @@ describe('apiFetch', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     clearAuthMock.mockReset();
+    resetWalletMock.mockReset();
     notifyRateLimitedMock.mockReset();
+    toastErrorMock.mockReset();
   });
 
   it('returns JSON on 200', async () => {
@@ -56,7 +74,7 @@ describe('apiFetch', () => {
     });
   });
 
-  it('clears auth and throws on 401', async () => {
+  it('clears auth, resets wallet, shows toast and throws on 401', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -69,6 +87,56 @@ describe('apiFetch', () => {
     const { apiFetch } = await import('./api');
     await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 401 });
     expect(clearAuthMock).toHaveBeenCalledTimes(1);
+    expect(resetWalletMock).toHaveBeenCalledTimes(1);
+    expect(toastErrorMock).toHaveBeenCalled();
+  });
+
+  it('clears auth, resets wallet, shows toast and throws on 403', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'Forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    const { apiFetch } = await import('./api');
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 403 });
+    expect(clearAuthMock).toHaveBeenCalledTimes(1);
+    expect(resetWalletMock).toHaveBeenCalledTimes(1);
+    expect(toastErrorMock).toHaveBeenCalled();
+  });
+
+  it('does not retry on 401 — only one fetch call is made', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchFn);
+    const { apiFetch } = await import('./api');
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 401 });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses stable toast id on 401 so concurrent requests do not stack toasts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    const { apiFetch } = await import('./api');
+    await expect(apiFetch('/api/test')).rejects.toThrow();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Session expired',
+      expect.objectContaining({ id: 'session-expired', duration: Infinity }),
+    );
   });
 
   it('uses actionable fallback message on 500', async () => {

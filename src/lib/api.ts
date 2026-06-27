@@ -1,4 +1,6 @@
+import { toast } from 'sonner';
 import { useAuthStore } from '../store/useAuthStore';
+import { useWalletStore } from '../store/useWalletStore';
 import { notifyRateLimited } from './rate-limit-toast';
 import { API_BASE_URL } from './config';
 
@@ -108,6 +110,23 @@ export function normalizeApiError(error: unknown, fallbackMessage = 'Something w
   return new ApiError(fallbackMessage, 0, 'UNKNOWN', undefined);
 }
 
+/** Stable toast id so concurrent 401/403 responses update a single toast. */
+const SESSION_EXPIRED_TOAST_ID = 'session-expired';
+
+function notifySessionExpired(): void {
+  toast.error('Session expired', {
+    id: SESSION_EXPIRED_TOAST_ID,
+    description: 'Your session has expired. Please reconnect your wallet.',
+    action: {
+      label: 'Reconnect',
+      onClick: () => {
+        window.location.href = '/';
+      },
+    },
+    duration: Infinity,
+  });
+}
+
 export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> {
   const { jwt, clearAuth } = useAuthStore.getState();
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -133,8 +152,10 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       signal: requestOptions.signal ?? controller.signal,
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403) {
       clearAuth();
+      useWalletStore.getState().reset();
+      notifySessionExpired();
     }
 
     if (!response.ok) {

@@ -9,6 +9,7 @@ import LazyBoundary from './components/LazyBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
+import ComingSoon from './pages/ComingSoon';
 
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const LegacyDashboard = lazy(() => import(/* webpackChunkName: "legacy-dashboard" */ './pages/LegacyDashboard'));
@@ -42,9 +43,10 @@ function App() {
               <Route
                 path="/tournament"
                 element={
-                  <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-                    Tournament — Coming Soon
-                  </div>
+                  <ComingSoon
+                    title="Tournament Mode"
+                    description="Compete in seasonal tournaments with leaderboards, prizes, and exclusive rewards. Skill-based competition coming soon."
+                  />
                 }
               />
               <Route path="/profile" element={<Profile />} />

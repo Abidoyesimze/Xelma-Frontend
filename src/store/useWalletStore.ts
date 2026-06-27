@@ -36,6 +36,7 @@ interface WalletState {
   networkMismatch: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
+  reset: () => void;
   checkConnection: () => Promise<void>;
   clearError: () => void;
 }
@@ -68,6 +69,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   networkMismatch: false,
 
   clearError: () => set({ errorMessage: null, errorCode: null }),
+
+  reset: () => {
+    set({
+      status: 'idle',
+      publicKey: null,
+      network: null,
+      balance: null,
+      errorMessage: null,
+      errorCode: null,
+      networkMismatch: false,
+    });
+  },
 
   disconnect: () => {
     set({

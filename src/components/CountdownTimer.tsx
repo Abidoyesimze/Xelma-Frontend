@@ -1,59 +1,25 @@
-import { useEffect, useState } from 'react';
+import React from "react";
+import { useRoundCountdown } from "../hooks/useRoundCountdown";
 
 interface CountdownTimerProps {
-  initialSeconds: number;
-  onExpire?: () => void;
+  endTime: string | number | Date;
   className?: string;
 }
 
-function formatTime(totalSeconds: number): string {
-  const clamped = Math.max(0, totalSeconds);
-  const m = Math.floor(clamped / 60);
-  const s = clamped % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+export default function CountdownTimer({ endTime, className = "" }: CountdownTimerProps) {
+  const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(endTime);
 
-export default function CountdownTimer({
-  initialSeconds,
-  onExpire,
-  className = '',
-}: CountdownTimerProps) {
-  const [seconds, setSeconds] = useState(initialSeconds);
-
-  useEffect(() => {
-    setSeconds(initialSeconds);
-  }, [initialSeconds]);
-
-  useEffect(() => {
-    if (seconds <= 0) {
-      onExpire?.();
-      return;
-    }
-
-    const id = window.setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(id);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(id);
-  }, [seconds, onExpire]);
-
-  const isUrgent = seconds > 0 && seconds < 120;
-  const isExpired = seconds <= 0;
+  // Determine urgency: less than 2 minutes remaining (120,000 ms)
+  const isUrgent = !isExpired && timeLeftMs > 0 && timeLeftMs < 120_000;
 
   return (
     <span
       className={`font-mono text-sm font-semibold tabular-nums ${
-        isUrgent ? 'text-amber-400' : 'text-cyan-300'
+        isUrgent ? "text-amber-400" : "text-cyan-300"
       } ${className}`}
       aria-live="polite"
     >
-      {isExpired ? 'Ended' : formatTime(seconds)}
+      {isExpired ? "Ended" : formattedTime}
     </span>
   );
 }

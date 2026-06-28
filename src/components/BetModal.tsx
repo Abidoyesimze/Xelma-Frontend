@@ -25,10 +25,22 @@ const PRICE_MIN = 0.0001;
 const PRICE_MAX = 10;
 const PRICE_DECIMALS = 4;
 
-function validateStake(value: string): string | null {
+function parseBalance(balance: string | null): number {
+  if (!balance) return 0;
+  const numericPart = balance.replace(' XLM', '');
+  return parseFloat(numericPart) || 0;
+}
+
+function validateStake(value: string, walletBalance: string | null): string | null {
   if (!value.trim()) return 'Enter a stake amount';
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return 'Stake must be greater than 0';
+  
+  const availableBalance = parseBalance(walletBalance);
+  if (amount > availableBalance) {
+    return `Stake exceeds available balance (${walletBalance || '0.00 XLM'})`;
+  }
+  
   return null;
 }
 
@@ -46,6 +58,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
+  const balance = useWalletStore((s) => s.balance);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const initialStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
@@ -59,6 +72,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
   const [stake, setStake] = useState(predictionData?.stake ?? '');
   const [exactPrice, setExactPrice] = useState(predictionData?.exactPrice ?? '');
   const [formError, setFormError] = useState('');
+  const [inlineStakeError, setInlineStakeError] = useState('');
 
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [prevPredictionData, setPrevPredictionData] = useState(predictionData);
@@ -69,6 +83,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     setStake(predictionData?.stake ?? '');
     setExactPrice(predictionData?.exactPrice ?? '');
     setFormError('');
+    setInlineStakeError('');
   }
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
@@ -83,6 +98,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       setStake(predictionData?.stake ?? '');
       setExactPrice(predictionData?.exactPrice ?? '');
       setFormError('');
+      setInlineStakeError('');
     }
   }
 
@@ -105,8 +121,15 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     }
   };
 
+  const handleStakeChange = (value: string) => {
+    setStake(value);
+    setFormError('');
+    const error = validateStake(value, balance);
+    setInlineStakeError(error || '');
+  };
+
   const handleConfirm = async () => {
-    const stakeError = validateStake(stake);
+    const stakeError = validateStake(stake, balance);
     const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
 
     if (stakeError || exactPriceError) {
@@ -304,13 +327,14 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
                     min="0"
                     step="0.0000001"
                     value={stake}
-                    onChange={(event) => { setStake(event.target.value); setFormError(''); }}
+                    onChange={(event) => handleStakeChange(event.target.value)}
                     className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
                     placeholder="15"
                   />
                   <span className="font-bold text-cyan-400">XLM</span>
                 </div>
                 {stake && <p className="mt-2 text-xs text-cyan-300">{stake} XLM</p>}
+                {inlineStakeError && <p className="mt-2 text-xs font-semibold text-red-400" role="alert">{inlineStakeError}</p>}
               </div>
 
               {formError && <p className="text-sm font-semibold text-red-400" role="alert">{formError}</p>}

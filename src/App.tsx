@@ -1,54 +1,63 @@
-import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
+import PageSkeleton from './components/PageSkeleton';
 import Landing from './pages/Landing';
-import Dashboard from './pages/Dashboard';
-import LegacyDashboard from './pages/LegacyDashboard';
-import Leaderboard from './components/Leaderboard';
-import LearnPage from './pages/Learn';
-import Connect from './pages/Connect';
+import RouteFallback from './components/RouteFallback';
+import LazyBoundary from './components/LazyBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
+import { OfflineBanner } from './components/OfflineBanner';
+import Footer from './components/Footer';
+
+const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
+const LegacyDashboard = lazy(() => import(/* webpackChunkName: "legacy-dashboard" */ './pages/LegacyDashboard'));
+const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
+const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
+const Connect = lazy(() => import('./pages/Connect'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Pools = lazy(() => import('./pages/Pools'));
 
 function App() {
+  const { pathname } = useLocation();
+  // Landing renders its own Footer at the bottom of its bespoke layout.
+  // All other routes share the global session footer for consistent branding.
+  const showGlobalFooter = pathname !== '/';
+
   return (
-    <div className="min-h-screen bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+    <div className="flex min-h-screen flex-col bg-[#0A0F1A] font-sans text-[#F3F4F6]">
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
+      <OfflineBanner />
       <Navbar />
-      <main id="main-content">
-        <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/play" element={<LegacyDashboard />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/learn" element={<LearnPage />} />
-        <Route path="/connect" element={<Connect />} />
-        <Route
-          path="/pools"
-          element={
-            <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-              Pools — Coming Soon
-            </div>
-          }
-        />
-        <Route
-          path="/tournament"
-          element={
-            <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-              Tournament — Coming Soon
-            </div>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-              Profile — Coming Soon
-            </div>
-          }
-        />
-      </Routes>
-      </main>
+      <ErrorBoundary>
+        <LazyBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <main id="main-content">
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
+                <Route path="/play" element={<Suspense fallback={<PageSkeleton type="legacy" />}><LegacyDashboard /></Suspense>} />
+                <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
+                <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
+                <Route path="/connect" element={<Connect />} />
+                <Route path="/pools" element={<Pools />} />
+                <Route
+                  path="/tournament"
+                  element={
+                    <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
+                      Tournament — Coming Soon
+                    </div>
+                  }
+                />
+                <Route path="/profile" element={<Profile />} />
+              </Routes>
+            </main>
+          </Suspense>
+        </LazyBoundary>
+      </ErrorBoundary>
+      {showGlobalFooter && <Footer />}
       <Toaster richColors position="top-center" theme="dark" />
     </div>
   );

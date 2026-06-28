@@ -182,5 +182,21 @@ describe('Navbar', () => {
       fireEvent.click(closeButton);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+
+    it('closes the drawer when Escape is pressed', () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('returns focus to the hamburger trigger after the drawer closes', () => {
+      renderNavbar();
+      const menuButton = screen.getByRole('button', { name: /open mobile menu/i });
+      fireEvent.click(menuButton);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(menuButton).toHaveFocus();
+    });
   });
 });

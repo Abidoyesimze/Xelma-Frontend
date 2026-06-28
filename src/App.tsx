@@ -11,8 +11,12 @@ import Connect from './pages/Connect';
 function App() {
   return (
     <div className="min-h-screen bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <Navbar />
-      <Routes>
+      <main id="main-content">
+        <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/play" element={<LegacyDashboard />} />
@@ -44,6 +48,7 @@ function App() {
           }
         />
       </Routes>
+      </main>
       <Toaster richColors position="top-center" theme="dark" />
     </div>
   );

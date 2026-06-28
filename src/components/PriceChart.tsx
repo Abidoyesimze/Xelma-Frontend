@@ -109,6 +109,20 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
   // y-coordinates for each price label
   const [labelYs, setLabelYs] = useState<number[]>([]);
 
+  // Refs for performance optimization
+  const dataRef = useRef<PricePoint[]>([]);
+  const updatePositionsRef = useRef<(() => void) | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const resizeTimeoutRef = useRef<number | null>(null);
+  const socketUpdateTimeoutRef = useRef<number | null>(null);
+  const pendingDataRef = useRef<PricePoint[]>([]);
+
+  // Keep dataRef in sync with data
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  // Memoize priceLabels with stable dependency
   const priceLabels = useMemo(() => buildPriceLabels(data), [data]);
   const latestPrice = data[data.length - 1]?.value ?? 0;
   const firstPrice = data[0]?.value ?? latestPrice;
@@ -176,9 +190,11 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
     };
   }, [height]);
 
+  // Stable updatePositions function using ref to avoid subscription cycles
   const updatePositions = useCallback(() => {
     if (!seriesRef.current) return;
-    const lastPoint = data[data.length - 1];
+    const currentData = dataRef.current;
+    const lastPoint = currentData[currentData.length - 1];
     if (!lastPoint) {
       setBadgeY(null);
       setLabelYs([]);
@@ -188,40 +204,87 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
     const y = seriesRef.current.priceToCoordinate(lastPoint.value);
     setBadgeY(y ?? null);
 
-    const ys = priceLabels.map((price) => seriesRef.current!.priceToCoordinate(price) ?? -9999);
+    const currentPriceLabels = buildPriceLabels(currentData);
+    const ys = currentPriceLabels.map((price) => seriesRef.current!.priceToCoordinate(price) ?? -9999);
     setLabelYs(ys);
-  }, [data, priceLabels]);
+  }, []);
 
+  // Store updatePositions in ref for stable reference
+  useEffect(() => {
+    updatePositionsRef.current = updatePositions;
+  }, [updatePositions]);
+
+  // Batched chart data update with requestAnimationFrame
   useEffect(() => {
     if (!seriesRef.current) return;
 
-    const chartData = data.map((point) => ({
-      time: point.time as UTCTimestamp,
-      value: point.value,
-    }));
+    // Cancel any pending RAF
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
 
-    seriesRef.current.setData(chartData);
-    chartRef.current?.timeScale().fitContent();
-    requestAnimationFrame(updatePositions);
-  }, [data, updatePositions]);
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (!seriesRef.current) return;
+
+      const chartData = data.map((point) => ({
+        time: point.time as UTCTimestamp,
+        value: point.value,
+      }));
+
+      seriesRef.current.setData(chartData);
+      chartRef.current?.timeScale().fitContent();
+      
+      if (updatePositionsRef.current) {
+        updatePositionsRef.current();
+      }
+      
+      rafIdRef.current = null;
+    });
+
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [data]);
 
   useEffect(() => {
     if (!chartRef.current || !chartContainerRef.current) return;
 
+    // Debounced resize handler
     const handleResize = () => {
-      if (!chartRef.current || !chartContainerRef.current) return;
-      chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
-      requestAnimationFrame(updatePositions);
+      if (resizeTimeoutRef.current !== null) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+
+      resizeTimeoutRef.current = window.setTimeout(() => {
+        if (!chartRef.current || !chartContainerRef.current) return;
+        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        if (updatePositionsRef.current) {
+          requestAnimationFrame(updatePositionsRef.current);
+        }
+        resizeTimeoutRef.current = null;
+      }, 100); // 100ms debounce
     };
 
-    chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(updatePositions);
+    // Use ref-based callback for stable subscription
+    const stableUpdatePositions = () => {
+      if (updatePositionsRef.current) {
+        updatePositionsRef.current();
+      }
+    };
+
+    chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(stableUpdatePositions);
     window.addEventListener("resize", handleResize);
 
     return () => {
-      chartRef.current?.timeScale().unsubscribeVisibleLogicalRangeChange(updatePositions);
+      chartRef.current?.timeScale().unsubscribeVisibleLogicalRangeChange(stableUpdatePositions);
       window.removeEventListener("resize", handleResize);
+      if (resizeTimeoutRef.current !== null) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
     };
-  }, [updatePositions]);
+  }, []);
 
   const loadInitialPrices = useCallback(async () => {
     setIsLoading(true);
@@ -250,13 +313,30 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
       const incomingPoints = extractPricePoints(payload);
       if (incomingPoints.length === 0) return;
 
-      setData((previous) => mergePricePoints(previous, incomingPoints));
-      setLoadError(null);
-      setLastUpdatedAt(new Date());
+      // Throttle socket updates to prevent excessive setData calls
+      pendingDataRef.current = [...pendingDataRef.current, ...incomingPoints];
+
+      if (socketUpdateTimeoutRef.current !== null) {
+        return; // Already pending, just accumulate data
+      }
+
+      socketUpdateTimeoutRef.current = window.setTimeout(() => {
+        setData((previous) => {
+          const merged = mergePricePoints(previous, pendingDataRef.current);
+          pendingDataRef.current = [];
+          return merged;
+        });
+        setLoadError(null);
+        setLastUpdatedAt(new Date());
+        socketUpdateTimeoutRef.current = null;
+      }, 50); // 50ms throttle - batch rapid updates
     });
 
     return () => {
       unsubscribe();
+      if (socketUpdateTimeoutRef.current !== null) {
+        clearTimeout(socketUpdateTimeoutRef.current);
+      }
       // Note: Don't disconnect socket here as other components may be using it
     };
   }, []); // Empty dependency array ensures this runs only once

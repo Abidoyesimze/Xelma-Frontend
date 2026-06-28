@@ -1,166 +1,399 @@
-// ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
-// ISSUE: Wire claim_winnings() to contract
+import { useState } from 'react';
+import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { place_bet, place_precision_prediction } from '../lib/xelma-contract';
+import { predictionsApi } from '../lib/api-client';
 
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import type { MockRound } from '../types';
-import { mockUserStats } from '../data/mockData';
-import CountdownTimer from './CountdownTimer';
-
-interface BetModalProps {
-  round: MockRound | null;
-  open: boolean;
-  onClose: () => void;
+export interface PredictionData {
+  direction: 'UP' | 'DOWN';
+  stake: string;
+  isLegend: boolean;
+  exactPrice?: string;
 }
 
-export default function BetModal({ round, open, onClose }: BetModalProps) {
-  const [direction, setDirection] = useState<'UP' | 'DOWN' | null>(null);
-  const [precisionPrice, setPrecisionPrice] = useState('');
-  const [amount, setAmount] = useState('100');
+interface BetModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  predictionData: PredictionData | null;
+  onSuccess?: (txHash: string) => void;
+}
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (open) window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
+type PredictionMode = 'direction' | 'precision';
 
-  if (!open || !round) return null;
+const PRICE_MIN = 0.0001;
+const PRICE_MAX = 10;
+const PRICE_DECIMALS = 4;
 
-  const parsedAmount = parseFloat(amount) || 0;
-  const potentialReturn =
-    round.mode === 'updown' ? parsedAmount * 1.5 : parsedAmount * 3;
+function validateStake(value: string): string | null {
+  if (!value.trim()) return 'Enter a stake amount';
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return 'Stake must be greater than 0';
+  return null;
+}
 
-  const canSubmit =
-    parsedAmount > 0 &&
-    parsedAmount <= mockUserStats.balance &&
-    (round.mode === 'updown' ? direction !== null : precisionPrice.trim() !== '');
+function validateExactPrice(value: string): string | null {
+  if (!value.trim()) return 'Enter an exact price target';
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return 'Exact price must be a valid number';
+  if (amount < PRICE_MIN || amount > PRICE_MAX) return `Exact price must be between ${PRICE_MIN} and ${PRICE_MAX}`;
+  const decimals = value.split('.')[1];
+  if (decimals && decimals.length > PRICE_DECIMALS) return `Use ${PRICE_DECIMALS} decimal places or fewer`;
+  return null;
+}
 
-  const handleConfirm = () => {
-    if (!canSubmit) return;
+export default function BetModal({ isOpen, onClose, predictionData, onSuccess }: BetModalProps) {
+  const isConnected = useWalletStore(selectIsWalletConnected);
+  const publicKey = useWalletStore((s) => s.publicKey);
+  const connect = useWalletStore((s) => s.connect);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-    // TODO: Wire to Xelma TypeScript bindings — client.place_bet() or client.place_precision_prediction()
-    const mins = Math.floor(round.closesInSeconds / 60);
-    const secs = String(round.closesInSeconds % 60).padStart(2, '0');
-    toast.success(`Prediction submitted — round resolves in ${mins}:${secs}`);
-    onClose();
+  const initialStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+
+  const [step, setStep] = useState<Step>(initialStep);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [txHash, setTxHash] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [mode, setMode] = useState<PredictionMode>(predictionData?.isLegend ? 'precision' : 'direction');
+  const [direction, setDirection] = useState<'UP' | 'DOWN'>(predictionData?.direction ?? 'UP');
+  const [stake, setStake] = useState(predictionData?.stake ?? '');
+  const [exactPrice, setExactPrice] = useState(predictionData?.exactPrice ?? '');
+  const [formError, setFormError] = useState('');
+
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevPredictionData, setPrevPredictionData] = useState(predictionData);
+  if (predictionData !== prevPredictionData && isOpen) {
+    setPrevPredictionData(predictionData);
+    setMode(predictionData?.isLegend ? 'precision' : 'direction');
+    setDirection(predictionData?.direction ?? 'UP');
+    setStake(predictionData?.stake ?? '');
+    setExactPrice(predictionData?.exactPrice ?? '');
+    setFormError('');
+  }
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      const targetStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+      setStep(targetStep);
+      setErrorMsg('');
+      setTxHash('');
+      setPrevPredictionData(predictionData);
+      setMode(predictionData?.isLegend ? 'precision' : 'direction');
+      setDirection(predictionData?.direction ?? 'UP');
+      setStake(predictionData?.stake ?? '');
+      setExactPrice(predictionData?.exactPrice ?? '');
+      setFormError('');
+    }
+  }
+
+  if (!isOpen || !predictionData) return null;
+
+  const handleConnectAndAuth = async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+      // Read post-connect state directly from the store to avoid stale closure values
+      const { status, publicKey: pk } = useWalletStore.getState();
+      const { isAuthenticated: ia } = useAuthStore.getState();
+      if (status === 'connected' && pk && ia) {
+        setStep('confirm');
+      }
+    } catch (err) {
+      console.error('Connection failed:', err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    const stakeError = validateStake(stake);
+    const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
+
+    if (stakeError || exactPriceError) {
+      setFormError(stakeError || exactPriceError || 'Invalid prediction details');
+      return;
+    }
+
+    setFormError('');
+    setStep('preparing');
+
+    if (!publicKey || !isConnected) {
+      setStep('wallet_required');
+      return;
+    }
+    // Immediately show preparing state before starting async transaction
+    setStep('preparing');
+    // Yield to the event loop so the UI can update before awaiting the contract call
+    await new Promise(resolve => setTimeout(resolve, 0));
+    try {
+      const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
+        setStep(s);
+      };
+
+      let result;
+      const isPrecision = mode === 'precision';
+
+      if (isPrecision) {
+        result = await place_precision_prediction(
+          publicKey,
+          direction,
+          stake,
+          exactPrice,
+          updateStatus
+        );
+      } else {
+        result = await place_bet(
+          publicKey,
+          direction,
+          stake,
+          updateStatus
+        );
+      }
+
+      setTxHash(result.txHash);
+      setStep('syncing');
+
+      // Submit to backend
+      await predictionsApi.submit({
+        direction,
+        stake,
+        isLegend: mode === 'precision',
+        exactPrice: mode === 'precision' ? exactPrice : undefined,
+      });
+
+      setStep('success');
+      if (onSuccess) {
+        onSuccess(result.txHash);
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Prediction submission error:', error);
+      setErrorMsg(error.message || 'An unexpected error occurred');
+      setStep('error');
+    }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="prediction-modal-title"
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        aria-label="Close prediction modal"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 text-gray-400 hover:text-white"
+          aria-label="Close"
+        >
+          ✕
+        </button>
 
-      <div className="glass-card relative z-10 w-full max-w-md rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="prediction-modal-title" className="text-xl font-bold text-white">
-              {round.asset} — {round.mode === 'updown' ? 'UP/DOWN' : 'Precision'}
-            </h2>
-            <p className="mt-1 text-sm text-gray-400">
-              Resolves in <CountdownTimer initialSeconds={round.closesInSeconds} />
+        {step === 'wallet_required' && (
+          <div className="text-center py-4">
+            <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              You need to connect and authenticate your Stellar wallet to submit predictions.
             </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-white/10 hover:text-white"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {round.mode === 'updown' ? (
-          <div className="mt-6 grid grid-cols-2 gap-3">
             <button
-              type="button"
-              onClick={() => setDirection('UP')}
-              className={`rounded-xl py-4 text-lg font-bold transition-all ${
-                direction === 'UP'
-                  ? 'bg-green-500 text-white ring-2 ring-green-400'
-                  : 'bg-white/5 text-gray-300 hover:bg-green-500/20'
-              }`}
+              onClick={handleConnectAndAuth}
+              disabled={isConnecting}
+              className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              UP ↑
+              {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
             </button>
-            <button
-              type="button"
-              onClick={() => setDirection('DOWN')}
-              className={`rounded-xl py-4 text-lg font-bold transition-all ${
-                direction === 'DOWN'
-                  ? 'bg-rose-500 text-white ring-2 ring-rose-400'
-                  : 'bg-white/5 text-gray-300 hover:bg-rose-500/20'
-              }`}
-            >
-              DOWN ↓
-            </button>
-          </div>
-        ) : (
-          <div className="mt-6">
-            <label htmlFor="precision-price" className="text-xs font-semibold uppercase text-gray-400">
-              Target price
-            </label>
-            <input
-              id="precision-price"
-              type="number"
-              step="0.0001"
-              value={precisionPrice}
-              onChange={(e) => setPrecisionPrice(e.target.value)}
-              placeholder={String(round.startPrice)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#2C4BFD]"
-            />
           </div>
         )}
 
-        <div className="mt-6">
-          <label htmlFor="stake-amount" className="text-xs font-semibold uppercase text-gray-400">
-            Stake
-          </label>
-          <div className="relative mt-2">
-            <input
-              id="stake-amount"
-              type="number"
-              min="1"
-              max={mockUserStats.balance}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-16 text-white outline-none focus:border-[#2C4BFD]"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-cyan-300">
-              vXLM
-            </span>
+        {step === 'confirm' && (
+          <div>
+            <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+
+            {/* Inline wallet-disconnect guard — shown reactively if wallet drops mid-session */}
+            {!isConnected && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-400">Wallet disconnected</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Connect your wallet to confirm.</p>
+                </div>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="shrink-0 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-semibold transition hover:bg-[#2C4BFD]/80 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect'}
+                </button>
+              </div>
+            )}
+
+            <div className="mb-5 grid grid-cols-2 rounded-xl border border-gray-800 bg-gray-950/70 p-1" role="tablist" aria-label="Prediction input mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'direction'}
+                onClick={() => { setMode('direction'); setFormError(''); }}
+                className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'direction' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Direction
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'precision'}
+                onClick={() => { setMode('precision'); setFormError(''); }}
+                className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'precision' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Precision
+              </button>
+            </div>
+
+            <div className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Mode</span>
+                <span className="font-semibold">
+                  {mode === 'precision' ? 'Legend Mode (Precision)' : 'UP/DOWN Match'}
+                </span>
+              </div>
+
+              <div>
+                <span className="mb-2 block text-sm text-gray-400">Direction</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['UP', 'DOWN'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setDirection(option)}
+                      className={`rounded-lg border px-3 py-2 font-bold transition ${
+                        direction === option
+                          ? option === 'UP'
+                            ? 'border-green-400 bg-green-500/15 text-green-400'
+                            : 'border-red-400 bg-red-500/15 text-red-400'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {mode === 'precision' && (
+                <div>
+                  <label htmlFor="bet-modal-exact-price" className="mb-2 block text-sm text-gray-400">
+                    Exact Price Target
+                  </label>
+                  <input
+                    id="bet-modal-exact-price"
+                    type="number"
+                    inputMode="decimal"
+                    min={PRICE_MIN}
+                    max={PRICE_MAX}
+                    step="0.0001"
+                    value={exactPrice}
+                    onChange={(event) => { setExactPrice(event.target.value); setFormError(''); }}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-yellow-400"
+                    placeholder="0.2295"
+                  />
+                  {exactPrice && <p className="mt-2 text-xs font-semibold text-yellow-400">${exactPrice}</p>}
+                </div>
+              )}
+
+              <div className="border-t border-gray-800 pt-3">
+                <label htmlFor="bet-modal-stake" className="mb-2 block text-sm text-gray-400">Stake</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="bet-modal-stake"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.0000001"
+                    value={stake}
+                    onChange={(event) => { setStake(event.target.value); setFormError(''); }}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
+                    placeholder="15"
+                  />
+                  <span className="font-bold text-cyan-400">XLM</span>
+                </div>
+                {stake && <p className="mt-2 text-xs text-cyan-300">{stake} XLM</p>}
+              </div>
+
+              {formError && <p className="text-sm font-semibold text-red-400" role="alert">{formError}</p>}
+            </div>
+
+            <button
+              onClick={handleConfirm}
+              disabled={!isConnected}
+              className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+            >
+              Confirm
+            </button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Practice balance: {mockUserStats.balance.toLocaleString()} vXLM
-          </p>
-        </div>
+        )}
 
-        <p className="mt-4 text-sm text-gray-300">
-          Estimated payout:{' '}
-          <span className="font-bold text-cyan-300">
-            {potentialReturn.toLocaleString(undefined, { maximumFractionDigits: 2 })} vXLM
-          </span>
-        </p>
+        {(step === 'preparing' || step === 'signing' || step === 'submitting' || step === 'syncing') && (
+          <div className="text-center py-8">
+            <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <h3 className="text-lg font-semibold">
+              {step === 'preparing' && 'Preparing Transaction...'}
+              {step === 'signing' && 'Waiting for Freighter Signature...'}
+              {step === 'submitting' && 'Submitting Transaction to Network...'}
+              {step === 'syncing' && 'Syncing Prediction to Backend...'}
+            </h3>
+            <p className="text-gray-400 text-sm mt-2">
+              Please check your wallet interface if prompted.
+            </p>
+          </div>
+        )}
 
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={handleConfirm}
-          className="btn-primary mt-6 w-full rounded-xl py-3.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Submit Prediction
-        </button>
+        {step === 'success' && (
+          <div className="text-center py-6">
+            <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+              ✓
+            </div>
+            <h3 className="text-xl font-bold mb-2">Prediction Submitted!</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              Your prediction has been successfully written on-chain and registered.
+            </p>
+            <div className="space-y-3">
+              <a
+                href={`https://stellarexpert.org/tx/${txHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"
+              >
+                View on StellarExpert
+              </a>
+              <button
+                onClick={onClose}
+                className="w-full py-3 border border-gray-800 hover:bg-gray-850 rounded-xl font-semibold transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'error' && (
+          <div className="text-center py-6">
+            <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+              ✕
+            </div>
+            <h3 className="text-xl font-bold mb-2">Transaction Failed</h3>
+            <p className="text-red-400 text-sm mb-6 px-4 break-words">
+              {errorMsg}
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={handleConfirm}
+                className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition"
+              >
+                Retry
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-3 border border-gray-800 hover:bg-gray-850 rounded-xl font-semibold transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

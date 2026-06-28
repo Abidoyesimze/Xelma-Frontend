@@ -26,34 +26,29 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0A0F1A] font-sans text-[#F3F4F6]">
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
       <OfflineBanner />
       <Navbar />
       <ErrorBoundary>
         <LazyBoundary>
           <Suspense fallback={<RouteFallback />}>
-            <main id="main-content">
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
-                <Route path="/play" element={<Suspense fallback={<PageSkeleton type="legacy" />}><LegacyDashboard /></Suspense>} />
-                <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
-                <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
-                <Route path="/connect" element={<Connect />} />
-                <Route path="/pools" element={<Pools />} />
-                <Route
-                  path="/tournament"
-                  element={
-                    <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-                      Tournament — Coming Soon
-                    </div>
-                  }
-                />
-                <Route path="/profile" element={<Profile />} />
-              </Routes>
-            </main>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
+              <Route path="/play" element={<Suspense fallback={<PageSkeleton type="legacy" />}><LegacyDashboard /></Suspense>} />
+              <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
+              <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
+              <Route path="/connect" element={<Connect />} />
+              <Route path="/pools" element={<Pools />} />
+              <Route
+                path="/tournament"
+                element={
+                  <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
+                    Tournament — Coming Soon
+                  </div>
+                }
+              />
+              <Route path="/profile" element={<Profile />} />
+            </Routes>
           </Suspense>
         </LazyBoundary>
       </ErrorBoundary>

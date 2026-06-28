@@ -35,7 +35,7 @@ export function useRoundCountdown(
     if (h > 0) {
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
-    // When less than an hour, omit hour component and avoid leading zero on minutes
+    // When less than an hour, omit hour component.
     return `${m}:${pad(s)}`;
   };
 

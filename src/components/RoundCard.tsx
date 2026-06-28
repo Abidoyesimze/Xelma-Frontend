@@ -2,7 +2,7 @@
 // ISSUE: Real-time round updates via Soroban event polling
 
 import type { MockRound } from '../types';
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 
 
 import CountdownTimer from './CountdownTimer';
@@ -33,7 +33,7 @@ function poolSize(round: MockRound): number {
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
 
-  const [endTime] = useState(() => Date.now() + round.closesInSeconds * 1000);
+  const endTime = useMemo(() => Date.now() + round.closesIn * 1000, [round.closesIn]);
   const total = poolSize(round);
 
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
@@ -50,11 +50,10 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         subtitle={`Reference ${round.startPrice.toLocaleString()}`}
         actions={
           <span
-            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
-              round.mode === "updown"
+            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${round.mode === "updown"
                 ? "bg-[#2C4BFD]/15 text-[#BEC7FE]"
                 : "bg-cyan-500/15 text-cyan-300"
-            }`}
+              }`}
           >
             {round.mode === "updown" ? "UP/DOWN" : "PRECISION"}
           </span>

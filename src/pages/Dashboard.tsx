@@ -106,8 +106,8 @@ const Dashboard = () => {
 
         {!isLoading && !isRoundActive && (
           <EmptyState
-            title="No Active Rounds"
-            description="Learn how the game works or refresh to check for new rounds."
+            title="No active round"
+            description="Check back soon for the next prediction round."
             action={
               <button
                 type="button"

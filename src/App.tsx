@@ -9,6 +9,8 @@ import LazyBoundary from './components/LazyBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
+import ComingSoonPage from './pages/ComingSoonPage';
+import { Trophy } from 'lucide-react';
 
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const LegacyDashboard = lazy(() => import(/* webpackChunkName: "legacy-dashboard" */ './pages/LegacyDashboard'));
@@ -42,9 +44,11 @@ function App() {
               <Route
                 path="/tournament"
                 element={
-                  <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-                    Tournament — Coming Soon
-                  </div>
+                  <ComingSoonPage
+                    icon={Trophy}
+                    title="Tournament"
+                    description="Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards."
+                  />
                 }
               />
               <Route path="/profile" element={<Profile />} />

@@ -1,4 +1,3 @@
-import React from "react";
 import { useRoundCountdown } from "../hooks/useRoundCountdown";
 
 interface CountdownTimerProps {
@@ -6,10 +5,14 @@ interface CountdownTimerProps {
   className?: string;
 }
 
+/**
+ * CountdownTimer displays a formatted time remaining until `endTime`.
+ * It uses the `useRoundCountdown` hook to manage the interval.
+ */
 export default function CountdownTimer({ endTime, className = "" }: CountdownTimerProps) {
   const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(endTime);
 
-  // Determine urgency: less than 2 minutes remaining (120,000 ms)
+  // Urgent style when less than 2 minutes remain
   const isUrgent = !isExpired && timeLeftMs > 0 && timeLeftMs < 120_000;
 
   return (

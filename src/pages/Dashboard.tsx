@@ -37,8 +37,8 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    const currentTimeout = timeoutRef.current;
     return () => {
-      const currentTimeout = timeoutRef.current;
       if (currentTimeout !== null) {
         clearTimeout(currentTimeout);
       }

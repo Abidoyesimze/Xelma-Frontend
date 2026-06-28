@@ -7,6 +7,7 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { claim_winnings } from '../lib/xelma-contract';
 import { toast } from 'sonner';
 import { formatVXLM } from '../lib/utils';
+import PanelHeader from './PanelHeader';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -76,9 +77,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
 
   return (
     <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
-      <h2 id="your-stats-title" className="text-lg font-bold text-white">
-        Your Record
-      </h2>
+      <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">
         <div className="flex items-center justify-between">

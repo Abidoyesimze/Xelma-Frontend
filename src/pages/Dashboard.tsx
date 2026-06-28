@@ -7,10 +7,83 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import { useRoundStore } from "../store/useRoundStore";
 import type { Round } from "../lib/api-client";
+import { educationApi } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
 import { Link } from "react-router-dom";
+import { TipCard } from "../components/education/TipCard";
+import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+
+const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
+
+const DailyTip = () => {
+  const [tip, setTip] = useState<Tip | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { date: string; tip: Tip };
+        if (parsed.date === today && parsed.tip) {
+          setTip(parsed.tip);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // corrupted cache — fall through to fetch
+      }
+    }
+
+    void educationApi.getTip().then((fetched) => {
+      if (fetched) {
+        localStorage.setItem(
+          DAILY_TIP_CACHE_KEY,
+          JSON.stringify({ date: today, tip: fetched })
+        );
+        setTip(fetched);
+      }
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div
+        className="rounded-2xl glass-card accent-border-teal p-6 animate-pulse"
+        aria-busy="true"
+        aria-label="Loading daily tip"
+      >
+        <div className="h-4 w-24 rounded bg-white/10 mb-3" />
+        <div className="h-3 w-full rounded bg-white/10 mb-2" />
+        <div className="h-3 w-4/5 rounded bg-white/10" />
+      </div>
+    );
+  }
+
+  if (!tip) {
+    return null;
+  }
+
+  return (
+    <div>
+      <TipCard tip={tip} />
+      <div className="mt-3 text-right">
+        <Link
+          to="/learn"
+          className="text-xs font-semibold text-xelma-teal-bright hover:underline"
+        >
+          View all guides &rarr;
+        </Link>
+      </div>
+    </div>
+  );
+};
 
 
 const Dashboard = () => {
@@ -132,6 +205,7 @@ const Dashboard = () => {
                 isSubmittingPrediction={isBetModalOpen}
                 onPrediction={handlePrediction}
               />
+              <DailyTip />
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">

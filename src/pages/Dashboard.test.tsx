@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Dashboard from './LegacyDashboard';
+import Dashboard from './Dashboard';
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -79,13 +79,6 @@ vi.mock('../lib/api-client', () => ({
 }));
 
 // Mock all the components to focus on integration logic
-vi.mock('../components/ChatSidebar', () => ({
-  ChatSidebar: ({ showNewsRibbon }: { showNewsRibbon: boolean }) => (
-    <div data-testid="chat-sidebar" data-show-news-ribbon={showNewsRibbon}>
-      Chat Sidebar
-    </div>
-  ),
-}));
 
 vi.mock('../components/PriceChart', () => ({
   default: ({ height }: { height: number }) => (
@@ -154,13 +147,7 @@ vi.mock('../components/PredictionHistory', () => ({
   ),
 }));
 
-vi.mock('../components/LiveGameStatsPanel', () => ({
-  default: () => (
-    <div data-testid="live-game-stats-panel">
-      <span>142</span>
-    </div>
-  ),
-}));
+
 
 vi.mock('../components/EndRoundModal', () => ({
   default: ({
@@ -186,6 +173,15 @@ vi.mock('../components/EndRoundModal', () => ({
       End Round Modal
     </div>
   ),
+}));
+
+vi.mock('../components/BetModal', () => ({
+  default: ({ isOpen, onClose, onSuccess }: any) => (
+    <div data-testid="bet-modal" data-open={isOpen}>
+      <button onClick={onClose} data-testid="close-bet-modal">Close</button>
+      <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
+    </div>
+  )
 }));
 
 import { useRoundStore } from '../store/useRoundStore';
@@ -219,25 +215,12 @@ describe('Dashboard', () => {
     it('renders all main components', () => {
       render(<Dashboard />);
 
-      expect(screen.getByTestId('chat-sidebar')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
     });
 
-    it('passes showNewsRibbon prop to ChatSidebar', () => {
-      render(<Dashboard showNewsRibbon={false} />);
 
-      const chatSidebar = screen.getByTestId('chat-sidebar');
-      expect(chatSidebar).toHaveAttribute('data-show-news-ribbon', 'false');
-    });
-
-    it('defaults showNewsRibbon to true', () => {
-      render(<Dashboard />);
-
-      const chatSidebar = screen.getByTestId('chat-sidebar');
-      expect(chatSidebar).toHaveAttribute('data-show-news-ribbon', 'true');
-    });
 
     it('passes correct props to PredictionCard', () => {
       render(<Dashboard />);
@@ -256,16 +239,7 @@ describe('Dashboard', () => {
       expect(predictionHistory).toHaveAttribute('data-user-id', 'GTEST123');
     });
 
-    it('shows the live game stats panel instead of the static player placeholder', () => {
-      render(<Dashboard />);
 
-
-      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
-      expect(screen.queryByText('142 Playing Now')).not.toBeInTheDocument();
-
-      expect(within(screen.getByTestId('live-game-stats-panel')).getByText('142')).toBeInTheDocument();
-
-    });
   });
 
   describe('wallet connection states', () => {
@@ -285,6 +259,9 @@ describe('Dashboard', () => {
       // When publicKey is null, the data-user-id attribute won't be set to "null" string
       // Instead, React will not render the attribute or render it as empty
       expect(predictionHistory).toBeInTheDocument();
+
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-connect-now')).toBeInTheDocument();
     });
 
     it('handles connecting wallet state', () => {
@@ -597,6 +574,23 @@ describe('Dashboard', () => {
       });
       
       vi.useRealTimers();
+    });
+  });
+
+  describe('bet modal interaction', () => {
+    it('opens bet modal on prediction and closes on close action', async () => {
+      render(<Dashboard />);
+      
+      const submitButton = screen.getByTestId('submit-prediction');
+      fireEvent.click(submitButton);
+
+      const modal = screen.getByTestId('bet-modal');
+      expect(modal).toHaveAttribute('data-open', 'true');
+
+      const closeButton = screen.getByTestId('close-bet-modal');
+      fireEvent.click(closeButton);
+
+      expect(modal).toHaveAttribute('data-open', 'false');
     });
   });
 

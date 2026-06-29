@@ -96,6 +96,7 @@ const Dashboard = () => {
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -204,6 +205,7 @@ const Dashboard = () => {
                 isConnecting={isWalletConnecting}
                 isSubmittingPrediction={isBetModalOpen}
                 onPrediction={handlePrediction}
+                walletBalance={balance}
               />
               <DailyTip />
             </div>

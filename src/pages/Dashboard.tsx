@@ -1,19 +1,43 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
+import StatsCard from "../components/StatsCard";
+import RecentActivity from "../components/RecentActivity";
 import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import { useRoundStore } from "../store/useRoundStore";
-import type { Round } from "../lib/api-client";
-import { educationApi } from "../lib/api-client";
+import type { Round, UserPrediction, UserStats } from "../lib/api-client";
+import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
 import { Link } from "react-router-dom";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+import { mockUserStats } from "../data/mockData";
+import type { RecentActivityItem } from "../types";
+
+function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
+  const isWin = typeof pred.isWin === "boolean"
+    ? pred.isWin
+    : String(pred.outcome ?? pred.result ?? pred.status ?? "").toLowerCase().includes("win") ||
+      String(pred.outcome ?? pred.result ?? pred.status ?? "").toUpperCase() === "WON";
+
+  const asset = typeof pred.asset === "string" ? pred.asset : "BTC";
+  const mode = (typeof pred.mode === "string" && (pred.mode === "updown" || pred.mode === "precision"))
+    ? pred.mode
+    : "updown";
+
+  return {
+    id: String(pred.id),
+    asset,
+    result: isWin ? "Won" : "Lost",
+    amount: typeof pred.stake === "number" ? pred.stake : parseFloat(String(pred.stake || 0)) || 0,
+    mode,
+  };
+}
 
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
@@ -100,6 +124,55 @@ const Dashboard = () => {
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const timeoutRef = useRef<number | null>(null);
+
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const [activities, setActivities] = useState<RecentActivityItem[]>([]);
+  const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    if (!isWalletConnected) {
+      setStats(null);
+      return;
+    }
+    setIsStatsLoading(true);
+    setStatsError(null);
+    try {
+      const data = await statsApi.getUserStats();
+      setStats(data);
+    } catch (err) {
+      console.error("Failed to fetch user stats:", err);
+      setStatsError(err instanceof Error ? err.message : "Failed to load stats");
+    } finally {
+      setIsStatsLoading(false);
+    }
+  }, [isWalletConnected]);
+
+  const fetchActivities = useCallback(async () => {
+    if (!isWalletConnected || !publicKey) {
+      setActivities([]);
+      return;
+    }
+    setIsActivitiesLoading(true);
+    setActivitiesError(null);
+    try {
+      const data = await predictionsApi.getUserHistory(publicKey);
+      setActivities(data.map(mapPredictionToActivityItem));
+    } catch (err) {
+      console.error("Failed to fetch predictions:", err);
+      setActivitiesError(err instanceof Error ? err.message : "Failed to load predictions");
+    } finally {
+      setIsActivitiesLoading(false);
+    }
+  }, [isWalletConnected, publicKey]);
+
+  useEffect(() => {
+    void fetchStats();
+    void fetchActivities();
+  }, [fetchStats, fetchActivities]);
 
   useEffect(() => {
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
@@ -207,6 +280,14 @@ const Dashboard = () => {
                 onPrediction={handlePrediction}
                 walletBalance={balance}
               />
+              {isWalletConnected && (
+                <StatsCard
+                  stats={stats || mockUserStats}
+                  isLoading={isStatsLoading}
+                  error={statsError || undefined}
+                  onRetry={fetchStats}
+                />
+              )}
               <DailyTip />
             </div>
 
@@ -214,6 +295,14 @@ const Dashboard = () => {
               <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
                 <PriceChart height={280} />
               </div>
+              {isWalletConnected && (
+                <RecentActivity
+                  items={activities}
+                  isLoading={isActivitiesLoading}
+                  error={activitiesError}
+                  onRetry={fetchActivities}
+                />
+              )}
               <PredictionHistory userId={publicKey} />
             </div>
           </div>
@@ -229,6 +318,8 @@ const Dashboard = () => {
         predictionData={pendingPrediction}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
+          void fetchStats();
+          void fetchActivities();
         }}
       />
       <EndRoundModal

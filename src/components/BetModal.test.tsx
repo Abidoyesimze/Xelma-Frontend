@@ -11,7 +11,7 @@ let mockIsAuthenticated = true;
 
 vi.mock('../store/useWalletStore', () => ({
   useWalletStore: (selector: (s: any) => any) =>
-    selector({ isConnected: mockIsConnected, publicKey: mockPublicKey, connect: mockConnect, status: 'connected' }),
+    selector({ isConnected: mockIsConnected, publicKey: mockPublicKey, connect: mockConnect, status: 'connected', balance: '1000 XLM' }),
   selectIsWalletConnected: (s: any) => s.isConnected,
 }));
 

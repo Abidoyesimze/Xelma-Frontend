@@ -33,6 +33,7 @@ describe('BetModal Component', () => {
     useWalletStore.setState({
       status: 'connected',
       publicKey: 'GUSER123',
+      balance: '1000 XLM',
     });
     useAuthStore.setState({
       isAuthenticated: true,

@@ -9,6 +9,24 @@ describe('useRoundCountdown Hook', () => {
   });
 
   afterEach(() => {
+import { renderHook, act } from "@testing-library/react";
+import { describe, test, expect, beforeAll, afterAll, vi } from "vitest";
+import { useRoundCountdown } from '../../hooks/useRoundCountdown';
+
+// Helper to advance timers safely
+function advance(ms: number) {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
+describe('useRoundCountdown Hook', () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-27T12:00:00Z')); // fixed now
+  });
+
+  afterAll(() => {
     vi.useRealTimers();
   });
 

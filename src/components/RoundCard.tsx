@@ -1,3 +1,4 @@
+
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
@@ -44,6 +45,11 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
+  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+
+  useEffect(() => {
+    setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
+  }, [round.closesInSeconds]);
 
   useEffect(() => {
     if (round.closesInSeconds <= 0) {
@@ -104,7 +110,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
-          <CountdownTimer endTime={new Date(Date.now() + round.closesInSeconds * 1000)} />
+          <CountdownTimer endTime={endTime} />
         </div>
       </div>
 

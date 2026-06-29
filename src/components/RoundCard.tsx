@@ -1,6 +1,7 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
+import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import { useEffect, useMemo } from "react";
 
@@ -8,6 +9,7 @@ import { useEffect, useMemo } from "react";
 import CountdownTimer from './CountdownTimer';
 import PanelHeader from './PanelHeader';
 import { formatVXLM, formatPercent } from '../lib/utils';
+import { TRANSITION } from '../utils/motion';
 
 interface RoundCardProps {
   round: MockRound;
@@ -40,15 +42,29 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const upPct = Math.round(upRatio * 100);
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
 
+  const statusMeta = getStatusMeta(round, round.closesInSeconds);
+  const prevStatus = useRef(statusMeta.label);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (round.closesInSeconds <= 0) {
+      setStatusAnnouncement('Round has ended');
+    } else if (prevStatus.current !== statusMeta.label) {
+      setStatusAnnouncement(`Round status: ${statusMeta.label}`);
+      prevStatus.current = statusMeta.label;
+    }
+  }, [statusMeta.label, round.closesInSeconds]);
+
   return (
     <article
-      className="glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5"
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 sm:p-5 ${TRANSITION}`}
       data-testid="round-card"
     >
-      <PanelHeader
-        title={`${round.asset}/USD`}
-        subtitle={`Reference ${round.startPrice.toLocaleString()}`}
-        actions={
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusAnnouncement}
+      </div>
+      <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
             className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${round.mode === "updown"
                 ? "bg-[#2C4BFD]/15 text-[#BEC7FE]"

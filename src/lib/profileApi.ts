@@ -6,9 +6,9 @@ export type ProfileSettingsValues = {
   streamerMode: boolean;
 };
 
-import { API_BASE_URL } from './config';
+import { getApiBaseUrl } from './apiConfig';
 
-const API_BASE = API_BASE_URL;
+const API_BASE = getApiBaseUrl();
 
 export async function fetchProfile(jwt: string): Promise<ProfileSettingsValues> {
   const res = await fetch(`${API_BASE}/api/user/profile`, {

@@ -10,6 +10,7 @@ import {
 import { priceApi, type PricePoint } from "../lib/api-client";
 import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
+import { PanelHeader } from "./ui/PanelHeader";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -345,31 +346,27 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2">
+      <PanelHeader
+        className="mb-4 px-2"
+        icon={
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: "linear-gradient(135deg, #1e3a5f, #0a1929)" }}
           >
             <span className="text-white text-xs font-bold">XLM</span>
           </div>
-          <div>
-            <span className="font-bold text-[#292D32] dark:text-white text-lg">XLM/USD</span>
-            <span className={`ml-2 text-xs ${isConnected ? 'text-green-500' : 'text-gray-400'} dark:text-gray-500`}>
-              {isConnected ? 'LIVE' : 'OFFLINE'}
+        }
+        title="XLM/USD"
+        status={isConnected ? { label: "LIVE", variant: "success" } : { label: "OFFLINE", variant: "default" }}
+        action={
+          <>
+            {!isConnected && <ConnectionStatus className="mr-4" />}
+            <span className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
+              {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
             </span>
-          </div>
-        </div>
-        
-        {/* Connection status when live updates are unavailable */}
-        {!isConnected && (
-          <ConnectionStatus className="mr-4" />
-        )}
-        <p className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
-          {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
-        </p>
-      </div>
+          </>
+        }
+      />
 
       {/* Chart area wrapper with padded border — azul marino */}
       <div className="relative w-full flex-1 rounded-2xl border-[3px] border-[#1e3a5f]" style={{ minHeight: height, background: "linear-gradient(180deg, #1e3a5f 0%, #13274F 50%, #0a1929 100%)" }}>

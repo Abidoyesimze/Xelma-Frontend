@@ -6,6 +6,7 @@ import Avatar from '../assets/avatar.svg';
 import { leaderboardApi, type LeaderboardEntry } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
+import { PanelHeader } from './ui/PanelHeader';
 import { formatVXLM } from '../lib/utils';
 import { TRANSITION, TRANSITION_COLORS, TRANSFORM_TRANSITION } from '../utils/motion';
 
@@ -160,34 +161,36 @@ const Leaderboard = () => {
       <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/5 blur-3xl" />
 
       <div className="relative w-full max-w-4xl mx-auto">
-        <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-8 tracking-tight">
-          Leaderboard
-        </h1>
-
-        {/* ── #203: Filter tabs ── */}
-        <div
-          role="tablist"
-          aria-label="Time range filter"
-          className="flex justify-center gap-2 mb-10 flex-wrap"
-        >
-          {FILTER_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              role="tab"
-              aria-selected={activeFilter === opt}
-              onClick={() => setFilter(opt)}
-              className={clsx(
-                'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
-                activeFilter === opt
-                  ? 'bg-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                  : 'glass-card text-gray-400 hover:text-white hover:border-cyan-500/40'
-              )}
+        <PanelHeader
+          variant="hero"
+          className="mb-10"
+          title="Leaderboard"
+          action={
+            <div
+              role="tablist"
+              aria-label="Time range filter"
+              className="flex justify-center gap-2 flex-wrap"
             >
-              {opt}
-            </button>
-          ))}
-        </div>
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeFilter === opt}
+                  onClick={() => setFilter(opt)}
+                  className={clsx(
+                    'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
+                    activeFilter === opt
+                      ? 'bg-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                      : 'glass-card text-gray-400 hover:text-white hover:border-cyan-500/40'
+                  )}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          }
+        />
 
         {/* ── Sticky current-user summary (#202 preserved) ── */}
         {isWalletConnected && (

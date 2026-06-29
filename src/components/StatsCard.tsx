@@ -50,8 +50,30 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   // Loading state
   if (isLoading) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
-        <p className="text-white">Loading...</p>
+      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
+        <h2 id="your-stats-title" className="text-lg font-bold text-white animate-pulse">
+          Your Record
+        </h2>
+        <span className="sr-only">Loading user statistics...</span>
+        <div className="mt-5 space-y-4">
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-24 rounded bg-white/10" />
+            <div className="h-5 w-20 rounded bg-white/10" />
+          </div>
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-28 rounded bg-white/10" />
+            <div className="h-5 w-16 rounded bg-white/10" />
+          </div>
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-32 rounded bg-white/10" />
+            <div className="h-5 w-12 rounded bg-white/10" />
+          </div>
+          <div className="border-t border-white/10 pt-4 space-y-2 animate-pulse">
+            <div className="h-3 w-16 rounded bg-white/10" />
+            <div className="h-2 w-full rounded bg-white/10" />
+          </div>
+          <div className="h-11 w-full rounded-xl bg-white/5 border border-white/5 animate-pulse mt-6" />
+        </div>
       </section>
     );
   }

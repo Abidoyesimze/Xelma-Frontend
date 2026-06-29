@@ -48,16 +48,22 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
   useEffect(() => {
-    setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
+    const timer = setTimeout(() => {
+      setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
+    }, 0);
+    return () => clearTimeout(timer);
   }, [round.closesInSeconds]);
 
   useEffect(() => {
-    if (round.closesInSeconds <= 0) {
-      setStatusAnnouncement('Round has ended');
-    } else if (prevStatus.current !== statusMeta.label) {
-      setStatusAnnouncement(`Round status: ${statusMeta.label}`);
-      prevStatus.current = statusMeta.label;
-    }
+    const timer = setTimeout(() => {
+      if (round.closesInSeconds <= 0) {
+        setStatusAnnouncement('Round has ended');
+      } else if (prevStatus.current !== statusMeta.label) {
+        setStatusAnnouncement(`Round status: ${statusMeta.label}`);
+        prevStatus.current = statusMeta.label;
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [statusMeta.label, round.closesInSeconds]);
 
   return (

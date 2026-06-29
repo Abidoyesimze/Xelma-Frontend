@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";

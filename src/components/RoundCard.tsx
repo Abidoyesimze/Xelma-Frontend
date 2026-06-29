@@ -4,6 +4,7 @@
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
+import { TRANSITION } from '../utils/motion';
 
 const ASSET_ICONS: Record<string, string> = {
   BTC: '₿',
@@ -41,7 +42,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
 
   return (
     <article
-      className="glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5"
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 sm:p-5 ${TRANSITION}`}
       data-testid="round-card"
     >
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">

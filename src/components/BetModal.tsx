@@ -3,6 +3,7 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction } from '../lib/xelma-contract';
 import { predictionsApi } from '../lib/api-client';
+import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -175,8 +176,8 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl">
+      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
+      <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
           onClick={onClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-white"

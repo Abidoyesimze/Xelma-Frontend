@@ -173,3 +173,71 @@ export const leaderboardApi = {
         return normalizeLeaderboard(response);
     },
 };
+
+/** Aggregate network metrics shown on the landing page. */
+export interface NetworkStats {
+    /** Total rounds resolved across the platform. */
+    totalRounds: number;
+    /** Total practice volume distributed, in vXLM. */
+    vXlmDistributed: number;
+    /** Count of active predictors. */
+    activePlayers: number;
+}
+
+type NetworkStatsResponse = Record<string, unknown> | { data?: Record<string, unknown> };
+
+function firstFiniteNumber(record: Record<string, unknown>, keys: string[]): number | null {
+    for (const key of keys) {
+        const raw = record[key];
+        const value = typeof raw === 'string' ? Number(raw) : raw;
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+    }
+    return null;
+}
+
+/**
+ * Normalize a backend stats payload into {@link NetworkStats}, tolerating the
+ * various key names a backend might use. Returns `null` when no usable numeric
+ * field is present so the caller can fall back to mock data.
+ */
+export function normalizeNetworkStats(response: NetworkStatsResponse): NetworkStats | null {
+    const source =
+        response && typeof response === 'object' && 'data' in response && response.data
+            ? (response.data as Record<string, unknown>)
+            : (response as Record<string, unknown>);
+
+    if (!source || typeof source !== 'object') {
+        return null;
+    }
+
+    const totalRounds = firstFiniteNumber(source, ['totalRounds', 'roundsResolved', 'rounds']);
+    const vXlmDistributed = firstFiniteNumber(source, [
+        'vXlmDistributed',
+        'practiceVolume',
+        'volume',
+    ]);
+    const activePlayers = firstFiniteNumber(source, [
+        'activePlayers',
+        'activePredictors',
+        'players',
+    ]);
+
+    if (totalRounds === null && vXlmDistributed === null && activePlayers === null) {
+        return null;
+    }
+
+    return {
+        totalRounds: totalRounds ?? 0,
+        vXlmDistributed: vXlmDistributed ?? 0,
+        activePlayers: activePlayers ?? 0,
+    };
+}
+
+export const statsApi = {
+    getNetworkStats: async (): Promise<NetworkStats | null> => {
+        const response = await apiFetch<NetworkStatsResponse>('/api/stats/network');
+        return normalizeNetworkStats(response);
+    },
+};

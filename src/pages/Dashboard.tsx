@@ -254,6 +254,7 @@ const Dashboard = () => {
                 isConnecting={isWalletConnecting}
                 isSubmittingPrediction={isBetModalOpen}
                 onPrediction={handlePrediction}
+                walletBalance={balance}
               />
               <DailyTip />
             </div>

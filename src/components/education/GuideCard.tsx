@@ -1,6 +1,7 @@
 import { BookOpen, Clock, ChevronRight } from "lucide-react";
 import type { Guide } from "../../types/education";
 import { cn } from "../../lib/utils";
+import { TRANSITION, TRANSFORM_TRANSITION } from "../../utils/motion";
 
 interface GuideCardProps {
     guide: Guide;
@@ -11,7 +12,8 @@ export const GuideCard = ({ guide, className }: GuideCardProps) => {
     return (
         <article
             className={cn(
-                "group relative flex flex-col overflow-hidden rounded-2xl glass-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(44,75,253,0.15)]",
+                "group relative flex flex-col overflow-hidden rounded-2xl glass-card hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(44,75,253,0.15)]",
+                TRANSITION,
                 className
             )}
             aria-labelledby={`guide-title-${guide.id}`}
@@ -21,7 +23,7 @@ export const GuideCard = ({ guide, className }: GuideCardProps) => {
                     <img
                         src={guide.imageUrl}
                         alt={guide.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        className={`h-full w-full object-cover ${TRANSFORM_TRANSITION} group-hover:scale-110`}
                     />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center bg-xelma-bg/60 border-b border-white/5">
@@ -61,7 +63,7 @@ export const GuideCard = ({ guide, className }: GuideCardProps) => {
                         rel={guide.externalLink ? "noopener noreferrer" : undefined}
                     >
                         Read Guide
-                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                        <ChevronRight className={`h-4 w-4 ${TRANSFORM_TRANSITION} group-hover:translate-x-1`} aria-hidden />
                     </a>
                     <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold tabular-nums">
                         {new Date(guide.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}

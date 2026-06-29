@@ -11,6 +11,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
 import ComingSoonPage from './pages/ComingSoonPage';
 import { Trophy } from 'lucide-react';
+import { ENTER } from './utils/motion';
 
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));

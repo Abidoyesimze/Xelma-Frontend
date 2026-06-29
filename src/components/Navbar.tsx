@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 
@@ -59,21 +60,19 @@ export default function Navbar() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
 
-  // Handle escape key to close mobile menu
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isMobileMenuOpen]);
+  useFocusTrap(drawerRef, {
+    active: isMobileMenuOpen,
+    onEscape: closeMenu,
+    restoreFocusRef: menuButtonRef,
+  });
 
   // Handle click outside to close mobile menu
   useEffect(() => {
@@ -97,8 +96,6 @@ export default function Navbar() {
       document.body.style.overflow = '';
     };
   }, [isMobileMenuOpen]);
-
-  const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   return (
     <>
@@ -171,6 +168,7 @@ export default function Navbar() {
 
             {/* Mobile Menu Button */}
             <button
+              ref={menuButtonRef}
               type="button"
               className="md:hidden rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
               onClick={() => setIsMobileMenuOpen(true)}

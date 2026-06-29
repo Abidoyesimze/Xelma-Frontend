@@ -8,6 +8,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
+import { mergePricePoints } from "./PriceChart.helpers";
 import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
@@ -55,18 +56,6 @@ function extractPricePoints(payload: unknown): PricePoint[] {
   if (nested) return extractPricePoints(nested);
   const point = toPricePoint(event);
   return point ? [point] : [];
-}
-
-function mergePricePoints(existing: PricePoint[], incoming: PricePoint[]): PricePoint[] {
-  if (incoming.length === 0) return existing;
-
-  const merged = new Map<number, PricePoint>();
-  for (const point of existing) merged.set(point.time, point);
-  for (const point of incoming) merged.set(point.time, point);
-
-  return Array.from(merged.values())
-    .sort((a, b) => a.time - b.time)
-    .slice(-500);
 }
 
 function buildPriceLabels(points: PricePoint[]): number[] {
@@ -322,14 +311,16 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
       }
 
       socketUpdateTimeoutRef.current = window.setTimeout(() => {
-        setData((previous) => {
-          const merged = mergePricePoints(previous, pendingDataRef.current);
-          pendingDataRef.current = [];
-          return merged;
-        });
+        const pending = pendingDataRef.current;
+        pendingDataRef.current = [];
+        socketUpdateTimeoutRef.current = null;
+
+        const merged = mergePricePoints(dataRef.current, pending);
+        if (merged === dataRef.current) return;
+
+        setData(merged);
         setLoadError(null);
         setLastUpdatedAt(new Date());
-        socketUpdateTimeoutRef.current = null;
       }, 50); // 50ms throttle - batch rapid updates
     });
 

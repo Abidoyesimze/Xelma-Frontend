@@ -1,8 +1,8 @@
 import { useAuthStore } from '../store/useAuthStore';
 import { notifyRateLimited } from './rate-limit-toast';
-import { API_BASE_URL } from './config';
+import { getApiBaseUrl } from './apiConfig';
 
-const API_BASE = API_BASE_URL;
+const API_BASE = getApiBaseUrl();
 const DEFAULT_TIMEOUT_MS = 15000;
 
 export interface ApiErrorShape {

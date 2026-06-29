@@ -7,6 +7,7 @@ import { leaderboardApi, type LeaderboardEntry } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { formatVXLM } from '../lib/utils';
+import { TRANSITION, TRANSITION_COLORS, TRANSFORM_TRANSITION } from '../utils/motion';
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -192,7 +193,7 @@ const Leaderboard = () => {
         {isWalletConnected && (
           <div
             className={clsx(
-              'mb-8 rounded-2xl glass-card p-5 lg:sticky lg:top-20 lg:z-20 transition-all duration-300',
+              `mb-8 rounded-2xl glass-card p-5 lg:sticky lg:top-20 lg:z-20 ${TRANSITION}`,
               currentUser ? 'accent-border-teal' : ''
             )}
           >
@@ -229,7 +230,7 @@ const Leaderboard = () => {
           {/* Rank 2 (Silver) */}
           {rank2 && (
             <div className="order-2 md:order-1 flex flex-col items-center w-full md:w-1/3 group">
-              <div className="relative mb-4 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#C0C0C0] shadow-[0_0_20px_rgba(192,192,192,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#C0C0C0]/25 ring-offset-2 ring-offset-[#0A0F1A]">
                   <img src={rank2.avatar} alt={rank2.name} className="w-full h-full object-cover" />
                 </div>
@@ -237,7 +238,7 @@ const Leaderboard = () => {
                   #2
                 </div>
               </div>
-              <p className="font-bold text-white text-lg mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank2.name}
               </p>
               <p className="text-[#C0C0C0] font-bold text-sm bg-slate-500/10 border border-slate-500/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(192,192,192,0.05)]">
@@ -250,7 +251,7 @@ const Leaderboard = () => {
           {/* Rank 1 (Gold) */}
           {rank1 && (
             <div className="order-1 md:order-2 flex flex-col items-center w-full md:w-1/3 -mt-6 md:-mt-12 z-10 group">
-              <div className="relative mb-5 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-5 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-32 h-32 rounded-full overflow-hidden border-[5px] border-[#FFD700] shadow-[0_0_30px_rgba(255,215,0,0.3)] z-10 relative bg-[#111827] ring-2 ring-[#FFD700]/30 ring-offset-2 ring-offset-[#0A0F1A]">
                   <img src={rank1.avatar} alt={rank1.name} className="w-full h-full object-cover" />
                 </div>
@@ -264,7 +265,7 @@ const Leaderboard = () => {
                   👑
                 </div>
               </div>
-              <p className="font-bold text-white text-2xl mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-2xl mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank1.name}
               </p>
               <p className="text-[#FDB931] font-extrabold text-base bg-amber-500/15 border border-amber-500/25 px-4 py-1.5 rounded-full shadow-md shadow-amber-500/5">
@@ -277,7 +278,7 @@ const Leaderboard = () => {
           {/* Rank 3 (Bronze) */}
           {rank3 && (
             <div className="order-3 md:order-3 flex flex-col items-center w-full md:w-1/3 group">
-              <div className="relative mb-4 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#CD7F32] shadow-[0_0_20px_rgba(205,127,50,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#CD7F32]/25 ring-offset-2 ring-offset-[#0A0F1A]">
                   <img src={rank3.avatar} alt={rank3.name} className="w-full h-full object-cover" />
                 </div>
@@ -285,7 +286,7 @@ const Leaderboard = () => {
                   #3
                 </div>
               </div>
-              <p className="font-bold text-white text-lg mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank3.name}
               </p>
               <p className="text-[#CD7F32] font-bold text-sm bg-amber-700/10 border border-amber-700/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(205,127,50,0.05)]">
@@ -326,7 +327,7 @@ const Leaderboard = () => {
                   >
                     <div
                       className={clsx(
-                        'flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-0 rounded-2xl p-4 shadow-sm transition-all duration-300 group h-full',
+                        `flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-0 rounded-2xl p-4 shadow-sm group h-full ${TRANSITION}`,
                         isCurrent
                           ? 'glass-card accent-border-teal bg-cyan-500/5'
                           : 'glass-card hover:bg-white/5 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.08)] transform hover:-translate-y-0.5'

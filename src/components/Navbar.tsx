@@ -8,6 +8,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import Logo from '../assets/logo.svg';
+import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 
 interface NavLinkItem {
   label: string;
@@ -187,7 +188,7 @@ export default function Navbar() {
         <div className="fixed inset-0 z-[100] flex md:hidden">
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+            className={`fixed inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} 
             onClick={closeMenu}
             aria-hidden="true"
           />
@@ -195,7 +196,7 @@ export default function Navbar() {
           {/* Drawer */}
           <div 
             ref={drawerRef}
-            className="relative ml-auto flex h-full w-full max-w-[280px] flex-col overflow-y-auto bg-[#0A0F1A] border-l border-[#BEC7FE]/10 p-6 shadow-2xl animate-in slide-in-from-right duration-200"
+            className={`relative ml-auto flex h-full w-full max-w-[280px] flex-col overflow-y-auto bg-[#0A0F1A] border-l border-[#BEC7FE]/10 p-6 shadow-2xl ${PANEL_SLIDE_RIGHT}`}
             role="dialog"
             aria-modal="true"
             aria-label="Mobile navigation menu"

@@ -20,7 +20,6 @@ export default function CountdownTimer({ endTime, className = "" }: CountdownTim
       className={`font-mono text-sm font-semibold tabular-nums ${
         isUrgent ? "text-amber-400" : "text-cyan-300"
       } ${className}`}
-      aria-live="polite"
     >
       {isExpired ? "Ended" : formattedTime}
     </span>

@@ -19,6 +19,8 @@ const steps = [
   },
 ];
 
+import { HOVER_LIFT } from '../utils/motion';
+
 export default function HowItWorks() {
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8" aria-labelledby="how-it-works-title">
@@ -36,7 +38,7 @@ export default function HowItWorks() {
         {steps.map((step) => (
           <article
             key={step.title}
-            className="glass-card group rounded-2xl p-8 transition-transform duration-300 hover:-translate-y-1"
+            className={`glass-card group rounded-2xl p-8 ${HOVER_LIFT}`}
           >
             <span className="text-5xl" role="img" aria-hidden>
               {step.icon}

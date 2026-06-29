@@ -1,5 +1,4 @@
 // ISSUE: Replace mock stats with live API call to backend /api/stats
-// ISSUE: Add XP and rank progression system UI
 
 import { useState } from 'react';
 import type { MockUserStats } from '../types';
@@ -7,7 +6,7 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { claim_winnings } from '../lib/xelma-contract';
 import { toast } from 'sonner';
 import { formatVXLM } from '../lib/utils';
-import PanelHeader from './PanelHeader';
+import RankProgressBar from './RankProgressBar';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -101,18 +100,8 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           </dd>
         </div>
 
-        <div className="flex items-center justify-between">
-          <dt className="text-sm text-gray-400">Rank</dt>
-          <dd>
-            <span className="rounded-full bg-[#2C4BFD]/15 px-3 py-1 text-sm font-bold text-[#BEC7FE]">
-              {stats.rank}
-            </span>
-          </dd>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-white/10 pt-4">
-          <dt className="text-sm text-gray-400">Experience</dt>
-          <dd className="font-mono text-sm text-gray-300">{stats.xp} XP</dd>
+        <div className="border-t border-white/10 pt-4">
+          <RankProgressBar xp={stats.xp} />
         </div>
         
         {pendingWinnings > 0 && (

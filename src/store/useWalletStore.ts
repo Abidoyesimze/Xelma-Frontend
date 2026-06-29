@@ -8,9 +8,9 @@ import {
 } from '@stellar/freighter-api';
 import { toast } from 'sonner';
 import { useAuthStore } from './useAuthStore';
-import { API_BASE_URL } from '../lib/config';
+import { getApiBaseUrl } from '../lib/apiConfig';
 
-const API_BASE = API_BASE_URL;
+const API_BASE = getApiBaseUrl();
 
 /** Single source of truth for wallet UI + lifecycle (issue #71). */
 export type WalletStatus = 'idle' | 'checking' | 'connecting' | 'connected' | 'error';

@@ -1,13 +1,13 @@
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "../store/useAuthStore";
-import { SOCKET_URL as CONFIG_SOCKET_URL } from "./config";
+import { getSocketUrl } from './apiConfig';
 
 /** Strips a trailing /api segment so Socket.IO connects to the server root, not the REST prefix. */
 export function normalizeSocketUrl(url: string): string {
   return url.replace(/\/api\/?$/i, '');
 }
 
-const SOCKET_URL = CONFIG_SOCKET_URL;
+const SOCKET_URL = getSocketUrl();
 
 // Connection status types
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';

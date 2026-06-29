@@ -1,7 +1,11 @@
-import { useState } from 'react';
+// ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
+// ISSUE: Real-time round updates via Soroban event polling
+
+import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
+import { TRANSITION } from '../utils/motion';
 
 const ASSET_ICONS: Record<string, string> = {
   BTC: '₿',
@@ -38,11 +42,27 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
   const [endTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
+  const statusMeta = getStatusMeta(round, round.closesInSeconds);
+  const prevStatus = useRef(statusMeta.label);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (round.closesInSeconds <= 0) {
+      setStatusAnnouncement('Round has ended');
+    } else if (prevStatus.current !== statusMeta.label) {
+      setStatusAnnouncement(`Round status: ${statusMeta.label}`);
+      prevStatus.current = statusMeta.label;
+    }
+  }, [statusMeta.label, round.closesInSeconds]);
+
   return (
     <article
-      className="glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5"
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 sm:p-5 ${TRANSITION}`}
       data-testid="round-card"
     >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusAnnouncement}
+      </div>
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span

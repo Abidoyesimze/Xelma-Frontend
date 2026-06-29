@@ -30,7 +30,7 @@ const baseStats: MockUserStats = {
   totalLosses: 4,
   currentStreak: 3,
   xp: 1500,
-  rank: 'Gold',
+  rank: 'Analyst',
 };
 
 interface WalletStateOverrides {
@@ -87,7 +87,7 @@ describe('StatsCard', () => {
     it('renders the rank badge', () => {
       renderCard();
       const row = screen.getByText('Rank').closest('div')!;
-      expect(within(row).getByText('Gold')).toBeInTheDocument();
+      expect(within(row).getByText('Analyst')).toBeInTheDocument();
     });
 
     it('renders the experience points', () => {

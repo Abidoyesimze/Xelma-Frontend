@@ -11,6 +11,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - **Issue tracker:** https://github.com/TevaLabs/Xelma-Frontend/issues
 - **Design reference:** [Figma – Xelma](https://www.figma.com/design/HQp2j9epTTKq6vggiGQRzl/Untitled?node-id=22-685&p=f&t=FZBmcBq74PBjmbF1-0)
 
+
 ---
 
 ## Table of contents

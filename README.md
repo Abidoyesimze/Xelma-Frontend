@@ -13,6 +13,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 
 ---
 
+
 ## Table of contents
 
 - [Tech stack](#tech-stack)

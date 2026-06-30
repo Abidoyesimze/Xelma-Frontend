@@ -41,6 +41,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
+  const [endTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);

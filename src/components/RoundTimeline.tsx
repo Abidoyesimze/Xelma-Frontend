@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
@@ -94,8 +94,26 @@ const RoundTimeline: React.FC = () => {
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
+  const [prevCurrentState, setPrevCurrentState] = useState(currentState);
+  const [stateAnnouncement, setStateAnnouncement] = useState('');
+
+  if (currentState !== prevCurrentState) {
+    const label =
+      TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
+      (currentState === 'disconnected'
+        ? 'Disconnected'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : currentState);
+    setStateAnnouncement(`Round is now ${label}`);
+    setPrevCurrentState(currentState);
+  }
+
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {stateAnnouncement}
+      </div>
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">

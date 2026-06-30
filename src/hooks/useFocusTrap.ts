@@ -49,10 +49,11 @@ export function useFocusTrap(
     const initialTarget = initialFocusRef?.current ?? focusable[0] ?? container;
     window.setTimeout(() => initialTarget.focus(), 0);
 
-    const restoreNode = restoreFocusRef?.current;
+    const restoreTarget = restoreFocusRef?.current;
+
     return () => {
       if (!restoreFocus) return;
-      const previouslyFocused = restoreNode ?? previouslyFocusedRef.current;
+      const previouslyFocused = restoreTarget ?? previouslyFocusedRef.current;
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
   }, [active, containerRef, initialFocusRef, restoreFocus, restoreFocusRef]);

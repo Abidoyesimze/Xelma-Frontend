@@ -28,6 +28,12 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-4 focus:left-4 focus:rounded-lg focus:bg-cyan-500 focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0A0F1A]"
+      >
+        Skip to main content
+      </a>
       <OfflineBanner />
       <Navbar />
       <ErrorBoundary>

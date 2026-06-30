@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
@@ -22,26 +22,27 @@ import DashboardSkeleton from '../components/DashboardSkeleton';
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
 const DailyTip = () => {
-  const [tip, setTip] = useState<Tip | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  const [tip, setTip] = useState<Tip | null>(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
-
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { date: string; tip: Tip };
         if (parsed.date === today && parsed.tip) {
-          setTip(parsed.tip);
-          setLoading(false);
-          return;
+          return parsed.tip;
         }
       } catch {
         // corrupted cache — fall through to fetch
       }
     }
+    return null;
+  });
+  const [loading, setLoading] = useState(!tip);
 
+  useEffect(() => {
+    if (tip) return;
+
+    const today = new Date().toISOString().slice(0, 10);
     void educationApi.getTip().then((fetched) => {
       if (fetched) {
         localStorage.setItem(
@@ -54,7 +55,7 @@ const DailyTip = () => {
     }).catch(() => {
       setLoading(false);
     });
-  }, []);
+  }, [tip]);
 
   if (loading) {
     return (
@@ -114,15 +115,6 @@ const Dashboard = () => {
     const unsubscribe = subscribeToRoundEvents();
     return () => {
       unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      const currentTimeout = timeoutRef.current;
-      if (currentTimeout !== null) {
-        clearTimeout(currentTimeout);
-      }
     };
   }, []);
 
@@ -229,8 +221,8 @@ const Dashboard = () => {
 
         {!isLoading && !isRoundActive && (
           <EmptyState
-            title="No Active Rounds"
-            description="Learn how the game works or refresh to check for new rounds."
+            title="No active round"
+            description="Check back soon for the next prediction round."
             action={
               <button
                 type="button"

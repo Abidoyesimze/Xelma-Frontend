@@ -79,14 +79,14 @@ describe('RoundCard Component', () => {
   it('renders countdown timer formatted text', () => {
     render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
 
-    expect(screen.getByText('2:30')).toBeInTheDocument();
+    expect(screen.getByText('02:30')).toBeInTheDocument();
   });
 
   it('updates the countdown timer text as time passes using fake timers', () => {
     vi.useFakeTimers();
     render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
 
-    expect(screen.getByText('2:30')).toBeInTheDocument();
+    expect(screen.getByText('02:30')).toBeInTheDocument();
 
     // Advance time one second at a time to allow React effects to re-register the interval
     for (let i = 0; i < 10; i++) {
@@ -95,7 +95,7 @@ describe('RoundCard Component', () => {
       });
     }
 
-    expect(screen.getByText('2:20')).toBeInTheDocument();
+    expect(screen.getByText('02:20')).toBeInTheDocument();
     vi.useRealTimers();
   });
 

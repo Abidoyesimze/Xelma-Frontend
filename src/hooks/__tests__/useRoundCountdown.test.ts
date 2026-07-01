@@ -1,21 +1,21 @@
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
 import { useRoundCountdown } from '../../hooks/useRoundCountdown';
 
 // Helper to advance timers safely
 function advance(ms: number) {
   act(() => {
-    jest.advanceTimersByTime(ms);
+    vi.advanceTimersByTime(ms);
   });
 }
 
 describe('useRoundCountdown Hook', () => {
   beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-06-27T12:00:00Z')); // fixed now
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-27T12:00:00Z')); // fixed now
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   test('Expired context returns isExpired true and 00:00', () => {

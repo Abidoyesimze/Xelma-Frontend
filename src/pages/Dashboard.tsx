@@ -42,26 +42,41 @@ function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
 const DailyTip = () => {
-  const [tip, setTip] = useState<Tip | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  const [tip, setTip] = useState<Tip | null>(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
-
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { date: string; tip: Tip };
         if (parsed.date === today && parsed.tip) {
-          setTip(parsed.tip);
-          setLoading(false);
-          return;
+          return parsed.tip;
         }
       } catch {
-        // corrupted cache — fall through to fetch
+        // corrupted cache
       }
     }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { date: string; tip: Tip };
+        if (parsed.date === today && parsed.tip) {
+          return false;
+        }
+      } catch {
+        // corrupted cache
+      }
+    }
+    return true;
+  });
 
+  useEffect(() => {
+    if (tip !== null) return;
+
+    const today = new Date().toISOString().slice(0, 10);
     void educationApi.getTip().then((fetched) => {
       if (fetched) {
         localStorage.setItem(
@@ -74,7 +89,7 @@ const DailyTip = () => {
     }).catch(() => {
       setLoading(false);
     });
-  }, []);
+  }, [tip]);
 
   if (loading) {
     return (
@@ -185,6 +200,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const currentTimeout = timeoutRef.current;
       if (currentTimeout !== null) {
         clearTimeout(currentTimeout);

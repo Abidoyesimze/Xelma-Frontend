@@ -106,8 +106,11 @@ const RoundTimeline: React.FC = () => {
           : currentState === 'loading'
             ? 'Connecting'
             : currentState);
-      setStateAnnouncement(`Round is now ${label}`);
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${label}`);
+      }, 0);
       prevStateRef.current = currentState;
+      return () => clearTimeout(timer);
     }
   }, [currentState]);
 

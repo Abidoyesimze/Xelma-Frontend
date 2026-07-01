@@ -64,7 +64,7 @@ const DailyTip = () => {
       try {
         const parsed = JSON.parse(cached) as { date: string; tip: Tip };
         if (parsed.date === today && parsed.tip) {
-          return false;
+          return parsed.tip;
         }
       } catch {
         // corrupted cache
@@ -138,7 +138,6 @@ const Dashboard = () => {
   const balance = useWalletStore((s) => s.balance);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
-  const timeoutRef = useRef<number | null>(null);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -269,8 +268,8 @@ const Dashboard = () => {
 
         {!isLoading && !isRoundActive && (
           <EmptyState
-            title="No Active Rounds"
-            description="Learn how the game works or refresh to check for new rounds."
+            title="No active round"
+            description="Check back soon for the next prediction round."
             action={
               <button
                 type="button"

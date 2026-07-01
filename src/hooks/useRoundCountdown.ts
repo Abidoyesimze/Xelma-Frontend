@@ -27,7 +27,7 @@ export function useRoundCountdown(
   const intervalRef = useRef<number | null>(null);
 
   const format = (ms: number): string => {
-    const totalSec = Math.max(0, Math.ceil(ms / 1000));
+    const totalSec = Math.max(0, Math.floor((ms + 500) / 1000));
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
@@ -35,12 +35,11 @@ export function useRoundCountdown(
     if (h > 0) {
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
-    // When less than an hour, omit hour component.
-    return `${pad(m)}:${pad(s)}`;
+    // When less than an hour, omit hour component and do not pad minutes.
+    return `${m}:${pad(s)}`;
   };
 
   useEffect(() => {
-    // Clear any existing interval when endTime changes.
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
     }
@@ -49,9 +48,6 @@ export function useRoundCountdown(
       const remaining = targetTimestamp - Date.now();
       setTimeLeftMs(remaining > 0 ? remaining : 0);
     };
-
-    // Initial tick to handle immediate expiration.
-    tick();
 
     intervalRef.current = window.setInterval(tick, 1000);
 

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
@@ -94,7 +94,7 @@ const RoundTimeline: React.FC = () => {
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
-  const prevStateRef = useRef(currentState);
+  const [prevCurrentState, setPrevCurrentState] = useState(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
   useEffect(() => {

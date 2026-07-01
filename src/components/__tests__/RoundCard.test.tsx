@@ -77,9 +77,11 @@ describe('RoundCard Component', () => {
   });
 
   it('renders countdown timer formatted text', () => {
+    vi.useFakeTimers();
     render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
 
     expect(screen.getByText('02:30')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('updates the countdown timer text as time passes using fake timers', () => {

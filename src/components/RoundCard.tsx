@@ -4,15 +4,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
+import { useState } from "react";
+
+
 import CountdownTimer from './CountdownTimer';
+import PanelHeader from './PanelHeader';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
-
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿',
-  ETH: 'Ξ',
-  XLM: '✦',
-};
 
 interface RoundCardProps {
   round: MockRound;
@@ -37,7 +35,10 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
+
+  const [endTime] = useState(() => Date.now() + round.closesInSeconds * 1000);
   const total = poolSize(round);
+
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
@@ -78,29 +79,16 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]"
-            aria-hidden
+            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
+              round.mode === "updown"
+                ? "bg-[#2C4BFD]/15 text-[#BEC7FE]"
+                : "bg-cyan-500/15 text-cyan-300"
+            }`}
           >
-            {ASSET_ICONS[round.asset]}
+            {round.mode === "updown" ? "UP/DOWN" : "PRECISION"}
           </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold text-white">{round.asset}/USD</h3>
-            <p className="truncate text-xs text-gray-500">
-              Reference ${round.startPrice.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <span
-          className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
-            round.mode === 'updown'
-              ? 'bg-[#2C4BFD]/15 text-[#BEC7FE]'
-              : 'bg-cyan-500/15 text-cyan-300'
-          }`}
-        >
-          {round.mode === 'updown' ? 'UP/DOWN' : 'PRECISION'}
-        </span>
-      </header>
+        }
+      />
 
       <div
         className="flex min-w-0 flex-col gap-2 text-sm text-gray-400 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3"

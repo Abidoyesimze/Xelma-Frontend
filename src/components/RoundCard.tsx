@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
-import { useEffect, useMemo } from "react";
+import { useState } from "react";
 
 
 import CountdownTimer from './CountdownTimer';
@@ -36,7 +36,7 @@ function poolSize(round: MockRound): number {
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
 
-  const endTime = useMemo(() => Date.now() + round.closesIn * 1000, [round.closesIn]);
+  const [endTime] = useState(() => Date.now() + round.closesInSeconds * 1000);
   const total = poolSize(round);
 
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
@@ -79,10 +79,11 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${round.mode === "updown"
+            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
+              round.mode === "updown"
                 ? "bg-[#2C4BFD]/15 text-[#BEC7FE]"
                 : "bg-cyan-500/15 text-cyan-300"
-              }`}
+            }`}
           >
             {round.mode === "updown" ? "UP/DOWN" : "PRECISION"}
           </span>

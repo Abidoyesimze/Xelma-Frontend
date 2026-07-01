@@ -26,13 +26,13 @@ describe('useRoundCountdown Hook', () => {
     const { result } = renderHook(() => useRoundCountdown(future));
 
     expect(result.current.isExpired).toBe(false);
-    expect(result.current.formattedTime).toBe('0:30');
+    expect(result.current.formattedTime).toBe('00:30');
 
     act(() => {
       vi.advanceTimersByTime(10 * 1000);
     });
 
-    expect(result.current.formattedTime).toBe('0:20');
+    expect(result.current.formattedTime).toBe('00:20');
   });
 
   it('formats multi-hour countdowns as HH:MM:SS', () => {

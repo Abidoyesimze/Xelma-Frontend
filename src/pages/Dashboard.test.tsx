@@ -1,5 +1,37 @@
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock the API client
+vi.mock('../lib/api-client', () => ({
+  predictionsApi: {
+    submit: vi.fn(),
+    getUserHistory: vi.fn().mockResolvedValue([]),
+  },
+  educationApi: {
+    getTip: vi.fn().mockResolvedValue(null),
+    getGuides: vi.fn().mockResolvedValue([]),
+  },
+  statsApi: {
+    getNetworkStats: vi.fn().mockResolvedValue(null),
+    getUserStats: vi.fn().mockResolvedValue(null),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, status: number) {
+      super(message);
+      this.name = 'ApiError';
+      Object.assign(this, { status });
+    }
+  },
+}));
+
+vi.mock('react-router-dom', () => ({
+  Link: ({ children, to, ...props }: any) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 import Dashboard from './Dashboard';
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
@@ -195,12 +227,19 @@ vi.mock('../components/BetModal', () => ({
 
 import { useRoundStore } from '../store/useRoundStore';
 import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, educationApi, ApiError } from '../lib/api-client';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    
+    // Re-establish mock implementations for API client after reset
     vi.mocked(educationApi.getTip).mockResolvedValue(null);
+    vi.mocked(educationApi.getGuides).mockResolvedValue([]);
+    vi.mocked(statsApi.getNetworkStats).mockResolvedValue(null);
+    vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
+    vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
+    
     // Don't use fake timers as they interfere with async operations
     
     // Reset store mocks to default state

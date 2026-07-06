@@ -235,9 +235,58 @@ export function normalizeNetworkStats(response: NetworkStatsResponse): NetworkSt
     };
 }
 
+export interface UserStats {
+    balance: number;
+    pendingWinnings: number;
+    totalWins: number;
+    totalLosses: number;
+    currentStreak: number;
+    xp: number;
+    rank: string;
+}
+
+type UserStatsResponse = Record<string, unknown> | { data?: Record<string, unknown> };
+
+export function normalizeUserStats(response: UserStatsResponse): UserStats | null {
+    const source =
+        response && typeof response === 'object' && 'data' in response && response.data
+            ? (response.data as Record<string, unknown>)
+            : (response as Record<string, unknown>);
+
+    if (!source || typeof source !== 'object') {
+        return null;
+    }
+
+    const balance = firstFiniteNumber(source, ['balance', 'practiceBalance', 'walletBalance']);
+    const pendingWinnings = firstFiniteNumber(source, ['pendingWinnings', 'winnings', 'unclaimedWinnings']);
+    const totalWins = firstFiniteNumber(source, ['totalWins', 'wins', 'correctPredictions']);
+    const totalLosses = firstFiniteNumber(source, ['totalLosses', 'losses', 'incorrectPredictions']);
+    const currentStreak = firstFiniteNumber(source, ['currentStreak', 'streak', 'accuracyStreak']);
+    const xp = firstFiniteNumber(source, ['xp', 'experience', 'experiencePoints']);
+    const rank = typeof source.rank === 'string' ? source.rank : 'Rookie';
+
+    if (balance === null && totalWins === null && totalLosses === null && xp === null) {
+        return null;
+    }
+
+    return {
+        balance: balance ?? 0,
+        pendingWinnings: pendingWinnings ?? 0,
+        totalWins: totalWins ?? 0,
+        totalLosses: totalLosses ?? 0,
+        currentStreak: currentStreak ?? 0,
+        xp: xp ?? 0,
+        rank,
+    };
+}
+
 export const statsApi = {
     getNetworkStats: async (): Promise<NetworkStats | null> => {
         const response = await apiFetch<NetworkStatsResponse>('/api/stats/network');
         return normalizeNetworkStats(response);
+    },
+    getUserStats: async (): Promise<UserStats | null> => {
+        const response = await apiFetch<UserStatsResponse>('/api/stats');
+        return normalizeUserStats(response);
     },
 };

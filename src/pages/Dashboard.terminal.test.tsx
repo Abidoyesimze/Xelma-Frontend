@@ -25,6 +25,17 @@ vi.mock('../lib/api-client', () => ({
     getTip: vi.fn().mockResolvedValue(null),
     getGuides: vi.fn().mockResolvedValue([]),
   },
+  statsApi: {
+    getNetworkStats: vi.fn().mockResolvedValue(null),
+    getUserStats: vi.fn().mockResolvedValue(null),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, status: number) {
+      super(message);
+      this.name = 'ApiError';
+      Object.assign(this, { status });
+    }
+  },
 }));
 
 vi.mock('../lib/xelma-contract', () => ({

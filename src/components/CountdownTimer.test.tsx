@@ -30,8 +30,15 @@ describe('CountdownTimer', () => {
     expect(screen.getByText('Ended')).toBeInTheDocument();
   });
 
-  it('shows Ended after the timer expires', () => {
-    render(<CountdownTimer endTime={new Date(Date.now() + 2 * 1000)} />);
+  it('shows Ended after the timer expires and calls onExpire once', () => {
+    const onExpire = vi.fn();
+    vi.useFakeTimers();
+
+    const startTime = new Date('2026-06-27T12:00:00Z');
+    vi.setSystemTime(startTime);
+
+    const endTime = new Date(startTime.getTime() + 2 * 1000);
+    render(<CountdownTimer endTime={endTime} onExpire={onExpire} />);
 
     expect(screen.queryByText('Ended')).not.toBeInTheDocument();
     expect(screen.getByText('00:02')).toBeInTheDocument();
@@ -50,7 +57,9 @@ describe('CountdownTimer', () => {
   });
 
   it('cleans up interval timers on unmount', () => {
-    const { unmount } = render(<CountdownTimer endTime={new Date(Date.now() + 10 * 1000)} />);
+    vi.useFakeTimers();
+    const endTime = new Date(Date.now() + 10 * 1000);
+    const { unmount } = render(<CountdownTimer endTime={endTime} />);
 
     unmount();
 

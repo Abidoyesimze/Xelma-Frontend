@@ -28,6 +28,12 @@ export default function CountdownTimer({ endTime, className = "", initialSeconds
 
   const isUrgent = !isExpired && timeLeftMs > 0 && timeLeftMs < 120_000;
 
+  useEffect(() => {
+    if (isExpired && onExpire) {
+      onExpire();
+    }
+  }, [isExpired, onExpire]);
+
   return (
     <span
       className={`font-mono text-sm font-semibold tabular-nums ${

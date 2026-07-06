@@ -97,17 +97,22 @@ const RoundTimeline: React.FC = () => {
   const [prevCurrentState, setPrevCurrentState] = useState(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
-  if (currentState !== prevCurrentState) {
-    const label =
-      TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-      (currentState === 'disconnected'
-        ? 'Disconnected'
-        : currentState === 'loading'
-          ? 'Connecting'
-          : currentState);
-    setStateAnnouncement(`Round is now ${label}`);
-    setPrevCurrentState(currentState);
-  }
+  useEffect(() => {
+    if (prevStateRef.current !== currentState) {
+      const label =
+        TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
+        (currentState === 'disconnected'
+          ? 'Disconnected'
+          : currentState === 'loading'
+            ? 'Connecting'
+            : currentState);
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${label}`);
+      }, 0);
+      prevStateRef.current = currentState;
+      return () => clearTimeout(timer);
+    }
+  }, [currentState]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">

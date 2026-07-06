@@ -37,10 +37,10 @@ export default function CountdownTimer({ endTime, className = "", initialSeconds
   return (
     <span
       className={`font-mono text-sm font-semibold tabular-nums ${
-        isUrgent ? "text-amber-400" : "text-cyan-300"
+        isUrgent ? 'text-amber-400' : 'text-cyan-300'
       } ${className}`}
     >
-      {isExpired ? "Ended" : formattedTime}
+      {isExpired ? 'Ended' : formattedTime}
     </span>
   );
 }

@@ -7,6 +7,7 @@ import { claim_winnings } from '../lib/xelma-contract';
 import { toast } from 'sonner';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
+import PanelHeader from './PanelHeader';
 
 interface StatsCardProps {
   stats: MockUserStats;

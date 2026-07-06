@@ -1,16 +1,17 @@
-
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
 import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
-import { useState } from "react";
-
-
 import CountdownTimer from './CountdownTimer';
-import PanelHeader from './PanelHeader';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
+
+const ASSET_ICONS: Record<string, string> = {
+  BTC: '₿',
+  ETH: 'Ξ',
+  XLM: '✦',
+};
 
 interface RoundCardProps {
   round: MockRound;
@@ -35,29 +36,25 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
-
-  const [endTime] = useState(() => Date.now() + round.closesInSeconds * 1000);
+  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);
-
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
-  const [endTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
-  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
     }, 0);
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [round.closesInSeconds]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       if (round.closesInSeconds <= 0) {
         setStatusAnnouncement('Round has ended');
       } else if (prevStatus.current !== statusMeta.label) {
@@ -65,30 +62,44 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         prevStatus.current = statusMeta.label;
       }
     }, 0);
-    return () => clearTimeout(timer);
-  }, [statusMeta.label, round.closesInSeconds]);
+    return () => window.clearTimeout(timer);
+  }, [round.closesInSeconds, statusMeta.label]);
 
   return (
     <article
-      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 sm:p-5 ${TRANSITION}`}
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION}`}
       data-testid="round-card"
     >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {statusAnnouncement}
       </div>
+
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
-              round.mode === "updown"
-                ? "bg-[#2C4BFD]/15 text-[#BEC7FE]"
-                : "bg-cyan-500/15 text-cyan-300"
-            }`}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]"
+            aria-hidden
           >
-            {round.mode === "updown" ? "UP/DOWN" : "PRECISION"}
+            {ASSET_ICONS[round.asset]}
           </span>
-        }
-      />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-bold text-white">{round.asset}/USD</h3>
+            <p className="truncate text-xs text-gray-500">
+              Reference ${round.startPrice.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
+            round.mode === 'updown'
+              ? 'bg-[#2C4BFD]/15 text-[#BEC7FE]'
+              : 'bg-cyan-500/15 text-cyan-300'
+          }`}
+        >
+          {round.mode === 'updown' ? 'UP/DOWN' : 'PRECISION'}
+        </span>
+      </header>
 
       <div
         className="flex min-w-0 flex-col gap-2 text-sm text-gray-400 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3"
@@ -143,7 +154,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         type="button"
         disabled={round.closesInSeconds <= 0}
         onClick={() => onSubmitPrediction(round)}
-        className="btn-primary mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-primary mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="round-card-submit"
       >
         Submit Prediction

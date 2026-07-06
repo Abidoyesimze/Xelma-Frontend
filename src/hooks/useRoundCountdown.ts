@@ -35,8 +35,8 @@ export function useRoundCountdown(
     if (h > 0) {
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
-    // When less than an hour, omit hour component and do not pad minutes.
-    return `${m}:${pad(s)}`;
+    // When less than an hour, show a zero-padded minute value.
+    return `${pad(m)}:${pad(s)}`;
   };
 
   useEffect(() => {

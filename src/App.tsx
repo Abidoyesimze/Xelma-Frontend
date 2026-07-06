@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import PageSkeleton from './components/PageSkeleton';
@@ -14,7 +14,6 @@ import { Trophy } from 'lucide-react';
 import { ENTER } from './utils/motion';
 
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
-const LegacyDashboard = lazy(() => import(/* webpackChunkName: "legacy-dashboard" */ './pages/LegacyDashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
@@ -40,28 +39,28 @@ function App() {
       <ErrorBoundary>
         <LazyBoundary>
           <Suspense fallback={<RouteFallback />}>
-            <main id="main-content" key={pathname} className={ENTER}>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
-                <Route path="/play" element={<Suspense fallback={<PageSkeleton type="legacy" />}><LegacyDashboard /></Suspense>} />
-                <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
-                <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
-                <Route path="/connect" element={<Connect />} />
-                <Route path="/pools" element={<Pools />} />
-                <Route
-                  path="/tournament"
-                  element={
-                    <ComingSoonPage
-                      icon={Trophy}
-                      title="Tournament"
-                      description="Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards."
-                    />
-                  }
-                />
-                <Route path="/profile" element={<Profile />} />
-              </Routes>
-            </main>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
+              {/* /play is deprecated: its high-value panels (price chart, round
+                  timeline, chat, end-round modal) now live in /dashboard. */}
+              <Route path="/play" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
+              <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
+              <Route path="/connect" element={<Connect />} />
+              <Route path="/pools" element={<Pools />} />
+              <Route
+                path="/tournament"
+                element={
+                  <ComingSoonPage
+                    icon={Trophy}
+                    title="Tournament"
+                    description="Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards."
+                  />
+                }
+              />
+              <Route path="/profile" element={<Profile />} />
+            </Routes>
           </Suspense>
         </LazyBoundary>
       </ErrorBoundary>

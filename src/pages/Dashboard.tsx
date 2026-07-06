@@ -7,6 +7,10 @@ import RecentActivity from "../components/RecentActivity";
 import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
+import RoundTimeline from "../components/RoundTimeline";
+import { ChatSidebar } from "../components/ChatSidebar";
+import { ConnectionStatus } from "../components/ConnectionStatus";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
 import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
@@ -128,6 +132,7 @@ const DailyTip = () => {
 const Dashboard = () => {
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
   const isLoading = useRoundStore((state) => state.isLoading);
+  const sseConnection = useRoundStore((state) => state.sseConnection);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
     (s) => s.status === "connecting" || s.status === "checking"
@@ -135,9 +140,12 @@ const Dashboard = () => {
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const publicKey = useWalletStore((s) => s.publicKey);
-  const balance = useWalletStore((s) => s.balance);
+  const { isConnected: isSocketConnected } = useConnectionStatus();
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
+  // Community chat is opt-in so the default terminal stays uncluttered.
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -248,8 +256,50 @@ const Dashboard = () => {
 
   return (
     <div className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+      {/* Opt-in community chat (ported from the legacy /play view). Self-positions
+          as a fixed slide-over, so mounting it does not shift the terminal layout. */}
+      {isChatOpen && <ChatSidebar />}
+
       <div className="mx-auto max-w-7xl">
         {isLoading && <DashboardSkeleton />}
+
+        {!isLoading && (
+          <div className="mb-4 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setIsChatOpen((open) => !open)}
+              aria-pressed={isChatOpen}
+              className="btn-ghost inline-flex min-h-[40px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              {isChatOpen ? "Hide community chat" : "Community chat"}
+            </button>
+          </div>
+        )}
+
+        {/* Round-update connectivity, ported from /play so users see SSE/socket health. */}
+        {!isLoading &&
+          (!isSocketConnected ||
+            (sseConnection && sseConnection.status !== "connected")) && (
+            <div className="mb-4">
+              <ConnectionStatus />
+              {sseConnection &&
+                sseConnection.status !== "connected" &&
+                sseConnection.error && (
+                  <div className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      Round updates: {sseConnection.error}
+                    </p>
+                  </div>
+                )}
+            </div>
+          )}
+
+        {/* Round lifecycle timeline, ported from /play. */}
+        {!isLoading && (
+          <div className="mb-6">
+            <RoundTimeline />
+          </div>
+        )}
 
         {!isLoading && !isWalletConnected && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">

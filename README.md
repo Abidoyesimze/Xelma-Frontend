@@ -278,6 +278,20 @@ src/
 └── utils/             # Pure utility functions
 ```
 
+### Dashboard routes
+
+`/dashboard` is the single primary prediction terminal. It now includes the
+high-value panels that previously lived only on the legacy `/play` view: the
+price chart, the round lifecycle timeline, round-update connection status, the
+end-round modal, and opt-in community chat (toggled from the dashboard header so
+the default terminal stays uncluttered).
+
+`/play` is **deprecated** and permanently redirects to `/dashboard`. The
+`LegacyDashboard` component is retained only for reference and is no longer
+routed. Chat and notifications are available via the in-dashboard toggle; further
+social/notification consolidation is tracked in issue
+[#130](https://github.com/TevaLabs/Xelma-Frontend/issues/130).
+
 ---
 
 ## Testing

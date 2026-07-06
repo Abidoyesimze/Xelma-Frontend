@@ -1,9 +1,12 @@
+// LiveGameStatsPanel component – cleaned up (no duplicate utilities)
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Radio, ShieldAlert, Sparkles, Timer, Users } from "lucide-react";
+import { Activity, Radio, ShieldAlert, Timer, Users } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useRoundStore } from "../store/useRoundStore";
+import PanelHeader from "./PanelHeader";
 
+// Types
 type LiveStatsSnapshot = {
   activePlayers?: number;
   recentPredictions?: number;
@@ -12,6 +15,7 @@ type LiveStatsSnapshot = {
 
 type LiveStatsPayload = Record<string, unknown>;
 
+// Helper utilities – single definition
 function toFiniteNumber(value: unknown): number | undefined {
   const parsed = typeof value === "string" ? Number(value) : value;
   return typeof parsed === "number" && Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined;
@@ -21,14 +25,13 @@ function normalizeStatsPayload(payload: unknown): LiveStatsSnapshot {
   if (!payload || typeof payload !== "object") {
     return {};
   }
-
   const data = payload as LiveStatsPayload;
   const nested =
     data.stats && typeof data.stats === "object"
       ? (data.stats as LiveStatsPayload)
       : data.data && typeof data.data === "object"
-        ? (data.data as LiveStatsPayload)
-        : data;
+      ? (data.data as LiveStatsPayload)
+      : data;
 
   return {
     activePlayers:
@@ -54,7 +57,6 @@ function getRoundDisplayStatus(isRoundActive: boolean, status?: unknown) {
   if (typeof status === "string" && status.trim()) {
     return status.replace(/[_-]/g, " ");
   }
-
   return isRoundActive ? "live" : "waiting";
 }
 
@@ -69,7 +71,6 @@ function getConnectionBadge(
       dot: "bg-emerald-500",
     };
   }
-
   if (isSocketConnected || streamStatus === "connecting" || streamStatus === "reconnecting") {
     return {
       label: streamStatus === "reconnecting" ? "Reconnecting" : "Syncing",
@@ -77,7 +78,6 @@ function getConnectionBadge(
       dot: "bg-amber-400 animate-pulse",
     };
   }
-
   return {
     label: "Offline",
     className: "bg-rose-500/15 text-rose-700 ring-rose-500/30 dark:text-rose-300",
@@ -93,19 +93,15 @@ export default function LiveGameStatsPanel() {
   const { isConnected: isSocketConnected } = useConnectionStatus();
   const [liveStats, setLiveStats] = useState<LiveStatsSnapshot>({});
 
+  // Subscribe to live stats via socket
   useEffect(() => {
     if (!socketService.isConnected()) {
       socketService.connect();
     }
-
     const unsubscribeStats = socketService.onLiveGameStats((payload) => {
       const snapshot = normalizeStatsPayload(payload);
-      setLiveStats((current) => ({
-        ...current,
-        ...snapshot,
-      }));
+      setLiveStats((current) => ({ ...current, ...snapshot }));
     });
-
     const unsubscribePrediction = socketService.onPredictionCreated(() => {
       setLiveStats((current) => ({
         ...current,
@@ -113,13 +109,13 @@ export default function LiveGameStatsPanel() {
         lastUpdated: new Date(),
       }));
     });
-
     return () => {
       unsubscribeStats();
       unsubscribePrediction();
     };
   }, []);
 
+  // Derive values, falling back to round store when live data missing
   const inferredActivePlayers =
     liveStats.activePlayers ??
     toFiniteNumber(activeRound?.activePlayers) ??
@@ -142,15 +138,12 @@ export default function LiveGameStatsPanel() {
     if (isLoading) {
       return "Loading the latest game telemetry…";
     }
-
     if (!isSocketConnected && sseConnection?.status !== "connected") {
       return "Realtime updates are paused. Showing the latest available snapshot.";
     }
-
     if (!hasRound) {
       return "No active round is broadcasting yet. Stay ready for the next launch.";
     }
-
     return "Live telemetry refreshes as players join rounds and predictions land.";
   }, [hasRound, isLoading, isSocketConnected, sseConnection?.status]);
 
@@ -158,18 +151,9 @@ export default function LiveGameStatsPanel() {
     <section className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-5 text-white shadow-lg shadow-indigo-950/20 dark:border-indigo-400/20">
       <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden="true" />
       <div className="absolute -bottom-24 left-8 h-48 w-48 rounded-full bg-fuchsia-500/20 blur-3xl" aria-hidden="true" />
-
       <div className="relative flex flex-col gap-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-cyan-200">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              Live Game Stats
-            </div>
-            <h2 className="text-2xl font-black tracking-tight">Platform pulse</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-300">{supportingCopy}</p>
-          </div>
-
+          <PanelHeader title="Platform pulse" subtitle={supportingCopy} />
           <span
             className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ring-1 ${connectionBadge.className}`}
             aria-label={`Realtime connection status: ${connectionBadge.label}`}
@@ -178,14 +162,15 @@ export default function LiveGameStatsPanel() {
             {connectionBadge.label}
           </span>
         </div>
-
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
               <Users className="h-4 w-4 text-cyan-300" aria-hidden="true" />
               Active players
             </div>
-            <p className="mt-3 text-3xl font-black">{isLoading ? "…" : formatMetric(inferredActivePlayers)}</p>
+            <p className="mt-3 text-3xl font-black">
+              {isLoading ? "…" : formatMetric(inferredActivePlayers)}
+            </p>
             {!isLoading && inferredActivePlayers === undefined && (
               <p className="mt-1 text-xs text-slate-400">Awaiting player feed</p>
             )}
@@ -196,7 +181,9 @@ export default function LiveGameStatsPanel() {
               <Activity className="h-4 w-4 text-fuchsia-300" aria-hidden="true" />
               Recent predictions
             </div>
-            <p className="mt-3 text-3xl font-black">{isLoading ? "…" : formatMetric(inferredPredictions)}</p>
+            <p className="mt-3 text-3xl font-black">
+              {isLoading ? "…" : formatMetric(inferredPredictions)}
+            </p>
             {!isLoading && inferredPredictions === undefined && (
               <p className="mt-1 text-xs text-slate-400">No prediction count yet</p>
             )}
@@ -207,8 +194,12 @@ export default function LiveGameStatsPanel() {
               <Timer className="h-4 w-4 text-emerald-300" aria-hidden="true" />
               Round status
             </div>
-            <p className="mt-3 truncate text-2xl font-black capitalize">{isLoading ? "Loading" : roundStatus}</p>
-            <p className="mt-1 truncate text-xs text-slate-400">Round {hasRound ? `#${activeRound?.id}` : "pending"}</p>
+            <p className="mt-3 truncate text-2xl font-black capitalize">
+              {isLoading ? "Loading" : roundStatus}
+            </p>
+            <p className="mt-1 truncate text-xs text-slate-400">
+              Round {hasRound ? `#${activeRound?.id}` : "pending"}
+            </p>
           </div>
         </div>
 
@@ -224,7 +215,9 @@ export default function LiveGameStatsPanel() {
             </span>
           </div>
           <span className="text-xs text-slate-400">
-            {liveStats.lastUpdated ? `Updated ${liveStats.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Listening for live events"}
+            {liveStats.lastUpdated
+              ? `Updated ${liveStats.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              : "Listening for live events"}
           </span>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function ModeCards() {
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8" aria-labelledby="modes-title">
@@ -9,37 +11,69 @@ export default function ModeCards() {
       </p>
 
       <div className="mx-auto mt-12 grid max-w-5xl gap-8 md:grid-cols-2">
-        <article className="glass-card rounded-2xl border-2 border-[#2C4BFD]/40 p-8">
-          <div className="mb-4 inline-flex rounded-full bg-[#2C4BFD]/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#BEC7FE]">
-            Directional
-          </div>
-          <h3 className="text-2xl font-bold text-white">UP/DOWN Mode</h3>
-          <p className="mt-4 text-sm leading-relaxed text-gray-400">
-            Forecast price direction before the round closes. The majority side splits the pool —
-            fast rounds for market sentiment reads.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm text-gray-300">
-            <li>• 5-minute resolution windows</li>
-            <li>• Pool split by consensus</li>
-            <li>• Ideal for macro trend calls</li>
-          </ul>
-        </article>
+        <Link
+          to="/dashboard"
+          className="group glass-card rounded-2xl border-2 border-[#2C4BFD]/40 p-8 transition-all hover:border-[#2C4BFD]/70 hover:bg-[#2C4BFD]/5"
+        >
+          <article>
+            <div className="mb-4 inline-flex rounded-full bg-[#2C4BFD]/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#BEC7FE]">
+              Directional
+            </div>
+            <h3 className="text-2xl font-bold text-white">UP/DOWN Mode</h3>
+            <p className="mt-4 text-sm leading-relaxed text-gray-400">
+              Forecast price direction before the round closes. The majority side splits the pool —
+              fast rounds for market sentiment reads.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-gray-300">
+              <li>• 5-minute resolution windows</li>
+              <li>• Pool split by consensus</li>
+              <li>• Ideal for macro trend calls</li>
+            </ul>
+            <div className="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#2C4BFD]/20 px-4 py-3 text-sm font-semibold text-[#BEC7FE] transition-colors group-hover:bg-[#2C4BFD]/30">
+              Start Trading
+              <svg
+                className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </article>
+        </Link>
 
-        <article className="glass-card accent-border-teal rounded-2xl border-2 p-8">
-          <div className="mb-4 inline-flex rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-300">
-            Precision
-          </div>
-          <h3 className="text-2xl font-bold text-white">Precision Mode</h3>
-          <p className="mt-4 text-sm leading-relaxed text-gray-400">
-            Submit an exact price target at round close. Closest forecast wins the pool — built for
-            traders who read the tape.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm text-gray-300">
-            <li>• 15-minute analysis windows</li>
-            <li>• Closest prediction wins</li>
-            <li>• Higher skill ceiling</li>
-          </ul>
-        </article>
+        <Link
+          to="/dashboard"
+          className="group glass-card accent-border-teal rounded-2xl border-2 p-8 transition-all hover:border-cyan-500/70 hover:bg-cyan-500/5"
+        >
+          <article>
+            <div className="mb-4 inline-flex rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-300">
+              Precision
+            </div>
+            <h3 className="text-2xl font-bold text-white">Precision Mode</h3>
+            <p className="mt-4 text-sm leading-relaxed text-gray-400">
+              Submit an exact price target at round close. Closest forecast wins the pool — built for
+              traders who read the tape.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-gray-300">
+              <li>• 15-minute analysis windows</li>
+              <li>• Closest prediction wins</li>
+              <li>• Higher skill ceiling</li>
+            </ul>
+            <div className="mt-8 inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 px-4 py-3 text-sm font-semibold text-cyan-300 transition-colors group-hover:bg-cyan-500/30">
+              Start Trading
+              <svg
+                className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </article>
+        </Link>
       </div>
     </section>
   );

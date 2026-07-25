@@ -57,3 +57,54 @@ describe('EndRoundModal accessibility', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+describe('EndRoundModal sharing functionality', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', {
+      share: vi.fn().mockResolvedValue(undefined),
+      canShare: vi.fn().mockReturnValue(true),
+    });
+
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn().mockReturnValue('blob:mock-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+      createRadialGradient: vi.fn().mockReturnValue({
+        addColorStop: vi.fn(),
+      }),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      strokeRect: vi.fn(),
+      fillText: vi.fn(),
+      roundRect: vi.fn(),
+      stroke: vi.fn(),
+    }) as any;
+
+    HTMLCanvasElement.prototype.toBlob = vi.fn(function (this: HTMLCanvasElement, callback) {
+      callback(new Blob(['mock-png'], { type: 'image/png' }));
+    } as any);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders a share result button', () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+    expect(screen.getByRole('button', { name: /share result/i })).toBeInTheDocument();
+  });
+
+  it('attempts to use navigator.share when clicking share result', async () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+    const shareButton = screen.getByRole('button', { name: /share result/i });
+    fireEvent.click(shareButton);
+
+    await waitFor(() => {
+      expect(navigator.share).toHaveBeenCalled();
+    });
+  });
+});

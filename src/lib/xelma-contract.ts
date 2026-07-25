@@ -12,6 +12,28 @@ export interface ContractTransactionResult {
   ledger: number;
 }
 
+/** Fee and resource breakdown from a Soroban simulation. */
+export interface FeeEstimate {
+  /** Network base fee (stroops → XLM). */
+  baseFee: string;
+  /** Minimum resource fee charged by Soroban (stroops → XLM). */
+  resourceFee: string;
+  /** Total fee = baseFee + resourceFee (XLM). */
+  totalFee: string;
+  /** CPU instructions consumed by the contract call. */
+  instructions: string;
+  /** Ledger read bytes. */
+  readBytes: string;
+  /** Ledger write bytes. */
+  writeBytes: string;
+}
+
+const STROOPS_PER_XLM = 10_000_000;
+
+function stroopsToXlm(stroops: number): string {
+  return (stroops / STROOPS_PER_XLM).toFixed(7);
+}
+
 /**
  * Polls for the transaction status until it is no longer PENDING.
  */
@@ -140,6 +162,99 @@ async function executeContractCall(
 
   // 7. Poll for transaction completion
   return pollTransaction(submission.hash);
+}
+
+/**
+ * Build, simulate, and prepare a Soroban transaction — returns a fee/resource
+ * estimate without requiring a Freighter signature. This lets the UI show
+ * costs before the user approves in their wallet.
+ *
+ * Throws on simulation failure so the caller can display a clear error.
+ */
+async function simulateContractCall(
+  userAddress: string,
+  functionName: string,
+  args: xdr.ScVal[],
+): Promise<FeeEstimate> {
+  let account;
+  try {
+    account = await rpcServer.getAccount(userAddress);
+  } catch {
+    throw new Error('Stellar account not found or unfunded on Testnet. Please fund your address first.');
+  }
+
+  const contractInstance = new Contract(XELMA_CONTRACT_ID);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contractInstance.call(functionName, ...args))
+    .setTimeout(60)
+    .build();
+
+  let simulation;
+  try {
+    simulation = await rpcServer.simulateTransaction(tx);
+  } catch {
+    throw new Error('Simulation failed. Network error or contract invocation rejected.');
+  }
+
+  if ('error' in simulation && simulation.error) {
+    throw new Error(`Simulation failed: ${simulation.error}`);
+  }
+
+  // Prepare applies the simulation footprint & resource fee to the tx
+  await rpcServer.prepareTransaction(tx);
+
+  const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = simulation.minResourceFee ? Number(simulation.minResourceFee) : 0;
+
+  return {
+    baseFee: stroopsToXlm(baseFeeStroops),
+    resourceFee: stroopsToXlm(resourceFeeStroops),
+    totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
+    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
+    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
+    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+  };
+}
+
+/**
+ * Estimate fee and resources for an UP/DOWN bet without sending a transaction.
+ */
+export async function estimatePlaceBet(
+  userAddress: string,
+  direction: 'UP' | 'DOWN',
+  stake: string,
+): Promise<FeeEstimate> {
+  const amountStroops = BigInt(Math.round(parseFloat(stake) * 10_000_000));
+  const args = [
+    new Address(userAddress).toScVal(),
+    nativeToScVal(direction, { type: 'symbol' }),
+    nativeToScVal(amountStroops, { type: 'u128' }),
+  ];
+  return simulateContractCall(userAddress, 'place_bet', args);
+}
+
+/**
+ * Estimate fee and resources for a precision / Legend prediction without
+ * sending a transaction.
+ */
+export async function estimatePrecisionPrediction(
+  userAddress: string,
+  direction: 'UP' | 'DOWN',
+  stake: string,
+  exactPrice: string,
+): Promise<FeeEstimate> {
+  const amountStroops = BigInt(Math.round(parseFloat(stake) * 10_000_000));
+  const exactPriceScaled = BigInt(Math.round(parseFloat(exactPrice) * 10_000));
+  const args = [
+    new Address(userAddress).toScVal(),
+    nativeToScVal(direction, { type: 'symbol' }),
+    nativeToScVal(amountStroops, { type: 'u128' }),
+    nativeToScVal(exactPriceScaled, { type: 'u64' }),
+  ];
+  return simulateContractCall(userAddress, 'place_precision_prediction', args);
 }
 
 /**

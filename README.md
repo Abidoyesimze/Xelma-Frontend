@@ -305,6 +305,17 @@ This project uses `react-i18next` for lightweight frontend internationalization.
 - Missing translations fall back to English, so the app remains stable when a key is absent.
 - Add a new language by creating a resource file under `src/locales/`, registering it in `src/i18n.ts`, and adding new translated keys for the supported UI strings.
 
+## Progressive Web App (PWA)
+
+This app now includes an offline-capable service worker powered by `vite-plugin-pwa`.
+
+- The service worker caches the application shell, startup assets, icons, and `manifest.webmanifest`.
+- A dedicated offline fallback page is available at `/offline.html` when navigation cannot reach the network.
+- Static assets like JS, CSS, fonts, and icons use Cache First caching; API requests use Network First.
+- PWA install prompts are supported by the manifest and browser install UI.
+- Cache update behavior is handled automatically by `registerSW()` with `autoUpdate`.
+- To clear cached assets during development, open browser DevTools and unregister the service worker or clear site storage.
+
 ## Testing
 
 Unit and integration tests are implemented with **Vitest** + **React Testing Library**.

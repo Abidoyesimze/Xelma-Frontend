@@ -99,6 +99,7 @@ const DailyTip = () => {
     return (
       <div
         className="rounded-2xl glass-card accent-border-teal p-6 animate-pulse"
+        role="status"
         aria-busy="true"
         aria-label="Loading daily tip"
       >
@@ -140,6 +141,7 @@ const Dashboard = () => {
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);

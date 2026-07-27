@@ -140,7 +140,9 @@ const Dashboard = () => {
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
+
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.

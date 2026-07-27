@@ -1,6 +1,7 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
+
 
 interface TimelineState {
   label: string;
@@ -95,9 +96,9 @@ const RoundTimeline: React.FC = () => {
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- state placeholder for round transition history scaffolding
-  const [prevCurrentState, setPrevCurrentState] = useState(currentState);
+  const [_prevCurrentState, _setPrevCurrentState] = useState(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
-
+  const prevStateRef = useRef(currentState);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {
@@ -115,6 +116,8 @@ const RoundTimeline: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [currentState]);
+
+
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">

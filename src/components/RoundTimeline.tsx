@@ -94,8 +94,10 @@ const RoundTimeline: React.FC = () => {
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- state placeholder for round transition history scaffolding
   const [prevCurrentState, setPrevCurrentState] = useState(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
+
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {

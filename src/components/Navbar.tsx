@@ -5,7 +5,7 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Search } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
@@ -144,6 +144,17 @@ export default function Navbar() {
           {/* Desktop Wallet & Mobile Menu Toggle */}
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-3 md:flex">
+              <button
+                type="button"
+                onClick={() => {
+                  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+                }}
+                className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 hover:border-[#2C4BFD]/40 hover:text-white transition-colors"
+                aria-label="Open command palette (Ctrl+K)"
+              >
+                <Search className="w-4 h-4" />
+                <span className="text-xs">Ctrl+K</span>
+              </button>
               <NetworkBadge />
               {isConnected && publicKey ? (
                 <>

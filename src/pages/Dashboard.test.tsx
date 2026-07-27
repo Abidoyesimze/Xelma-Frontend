@@ -15,6 +15,14 @@ vi.mock('../lib/api-client', () => ({
     getNetworkStats: vi.fn().mockResolvedValue(null),
     getUserStats: vi.fn().mockResolvedValue(null),
   },
+  roundsApi: {
+    getActive: vi.fn().mockResolvedValue(null),
+    getHistory: vi.fn().mockResolvedValue([]),
+  },
+  priceApi: {
+    getLatestPrice: vi.fn().mockResolvedValue(null),
+    getPriceHistory: vi.fn().mockResolvedValue([]),
+  },
   ApiError: class ApiError extends Error {
     constructor(message: string, status: number) {
       super(message);
@@ -24,15 +32,22 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
+
+
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, ...props }: any) => (
     <a href={to} {...props}>
       {children}
     </a>
   ),
+  useNavigate: () => vi.fn(),
 }));
 
+import { useRoundStore } from '../store/useRoundStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 import Dashboard from './Dashboard';
+
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -94,29 +109,6 @@ vi.mock('../hooks/useConnectionStatus', () => ({
     isDisconnected: false,
     reconnect: vi.fn(),
   }),
-}));
-
-// Mock the API client
-vi.mock('../lib/api-client', () => ({
-  predictionsApi: {
-    submit: vi.fn(),
-  },
-  educationApi: {
-    getTip: vi.fn().mockResolvedValue(null),
-    getGuides: vi.fn().mockResolvedValue([]),
-  },
-  ApiError: class ApiError extends Error {
-    constructor(message: string, status: number) {
-      super(message);
-      this.name = 'ApiError';
-      Object.assign(this, { status });
-    }
-  },
-}));
-
-vi.mock('react-router-dom', () => ({
-  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
-  useNavigate: () => vi.fn(),
 }));
 
 // Mock all the components to focus on integration logic
@@ -225,11 +217,9 @@ vi.mock('../components/BetModal', () => ({
   )
 }));
 
-import { useRoundStore } from '../store/useRoundStore';
-import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 
 describe('Dashboard', () => {
+
   beforeEach(() => {
     vi.resetAllMocks();
     

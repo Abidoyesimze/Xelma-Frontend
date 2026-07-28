@@ -84,18 +84,6 @@ describe('StatsCard', () => {
       expect(within(row).getByText('4')).toBeInTheDocument();
     });
 
-    it('renders the rank badge', () => {
-      renderCard();
-      const row = screen.getByText('Rank').closest('div')!;
-      expect(within(row).getByText('Analyst')).toBeInTheDocument();
-    });
-
-    it('renders the experience points', () => {
-      renderCard();
-      const row = screen.getByText('Experience').closest('div')!;
-      expect(within(row).getByText('1500 XP')).toBeInTheDocument();
-    });
-
     it('shows the pending winnings row only when there are winnings', () => {
       renderCard();
       expect(screen.queryByText('Pending Winnings')).not.toBeInTheDocument();

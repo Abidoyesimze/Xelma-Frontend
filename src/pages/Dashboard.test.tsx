@@ -30,6 +30,7 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
+  useNavigate: () => vi.fn(),
 }));
 
 import Dashboard from './Dashboard';
@@ -94,29 +95,6 @@ vi.mock('../hooks/useConnectionStatus', () => ({
     isDisconnected: false,
     reconnect: vi.fn(),
   }),
-}));
-
-// Mock the API client
-vi.mock('../lib/api-client', () => ({
-  predictionsApi: {
-    submit: vi.fn(),
-  },
-  educationApi: {
-    getTip: vi.fn().mockResolvedValue(null),
-    getGuides: vi.fn().mockResolvedValue([]),
-  },
-  ApiError: class ApiError extends Error {
-    constructor(message: string, status: number) {
-      super(message);
-      this.name = 'ApiError';
-      Object.assign(this, { status });
-    }
-  },
-}));
-
-vi.mock('react-router-dom', () => ({
-  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
-  useNavigate: () => vi.fn(),
 }));
 
 // Mock all the components to focus on integration logic

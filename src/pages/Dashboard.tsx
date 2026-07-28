@@ -143,6 +143,7 @@ const Dashboard = () => {
   const { isConnected: isSocketConnected } = useConnectionStatus();
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
+  const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
@@ -362,13 +363,23 @@ const Dashboard = () => {
               </div>
               {isWalletConnected && (
                 <RecentActivity
-                  items={activities}
+                  items={
+                    optimisticPrediction
+                      ? [
+                          {
+                            ...mapPredictionToActivityItem(optimisticPrediction),
+                            result: optimisticPrediction.status === 'FAILED' ? 'Failed' : 'Pending',
+                          } as RecentActivityItem,
+                          ...activities.filter((a) => a.id !== String(optimisticPrediction.id)),
+                        ]
+                      : activities
+                  }
                   isLoading={isActivitiesLoading}
                   error={activitiesError}
                   onRetry={fetchActivities}
                 />
               )}
-              <PredictionHistory userId={publicKey} />
+              <PredictionHistory userId={publicKey} optimisticPrediction={optimisticPrediction} />
             </div>
           </div>
         )}
@@ -379,10 +390,16 @@ const Dashboard = () => {
         onClose={() => {
           setIsBetModalOpen(false);
           setPendingPrediction(null);
+          if (optimisticPrediction?.status === 'FAILED') {
+            setOptimisticPrediction(null);
+          }
         }}
         predictionData={pendingPrediction}
+        onPending={(prediction) => setOptimisticPrediction(prediction)}
+        onPredictionError={() => setOptimisticPrediction(prev => prev ? { ...prev, status: 'FAILED' } : null)}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
+          setOptimisticPrediction(null);
           void fetchStats();
           void fetchActivities();
         }}

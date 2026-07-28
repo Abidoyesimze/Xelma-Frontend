@@ -17,6 +17,8 @@ interface BetModalProps {
   onClose: () => void;
   predictionData: PredictionData | null;
   onSuccess?: (txHash: string) => void;
+  onPending?: (prediction: UserPrediction) => void;
+  onPredictionError?: () => void;
 }
 
 type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
@@ -55,7 +57,7 @@ function validateExactPrice(value: string): string | null {
   return null;
 }
 
-export default function BetModal({ isOpen, onClose, predictionData, onSuccess }: BetModalProps) {
+export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError }: BetModalProps) {
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
@@ -150,6 +152,19 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     // Yield to the event loop so the UI can update before awaiting the contract call
     await new Promise(resolve => setTimeout(resolve, 0));
     try {
+      if (onPending && publicKey) {
+        onPending({
+          id: `pending-${Date.now()}`,
+          direction,
+          stake,
+          exactPrice: mode === 'precision' ? exactPrice : undefined,
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          mode: mode === 'precision' ? 'precision' : 'updown',
+          asset: 'XLM',
+        } as UserPrediction);
+      }
+      
       const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
         setStep(s);
       };
@@ -194,6 +209,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       console.error('Prediction submission error:', error);
       setErrorMsg(error.message || 'An unexpected error occurred');
       setStep('error');
+      if (onPredictionError) {
+        onPredictionError();
+      }
     }
   };
 

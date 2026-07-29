@@ -100,10 +100,15 @@ vi.mock('../hooks/useConnectionStatus', () => ({
 vi.mock('../lib/api-client', () => ({
   predictionsApi: {
     submit: vi.fn(),
+    getUserHistory: vi.fn().mockResolvedValue([]),
   },
   educationApi: {
     getTip: vi.fn().mockResolvedValue(null),
     getGuides: vi.fn().mockResolvedValue([]),
+  },
+  statsApi: {
+    getNetworkStats: vi.fn().mockResolvedValue(null),
+    getUserStats: vi.fn().mockResolvedValue(null),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string, status: number) {

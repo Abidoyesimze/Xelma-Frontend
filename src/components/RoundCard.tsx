@@ -16,6 +16,7 @@ const ASSET_ICONS: Record<string, string> = {
 interface RoundCardProps {
   round: MockRound;
   onSubmitPrediction: (round: MockRound) => void;
+  isHighlighted?: boolean;
 }
 
 function getStatusMeta(round: MockRound, secondsLeft: number) {
@@ -35,7 +36,7 @@ function poolSize(round: MockRound): number {
   return round.totalPool ?? 0;
 }
 
-export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
+export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
@@ -67,8 +68,11 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
 
   return (
     <article
-      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION}`}
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
+        isHighlighted ? 'accent-border-teal' : ''
+      }`}
       data-testid="round-card"
+      data-highlighted={isHighlighted ? 'true' : 'false'}
     >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {statusAnnouncement}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useProfileStore } from "../store/useProfileStore";
+import { useWalletStore } from "../store/useWalletStore";
 import ProfileSettingsModal from "./ProfileSettingsModal";
+import IdenticonAvatar from "./IdenticonAvatar";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -23,6 +25,7 @@ export default function ProfileSummaryCard() {
   const isLoading = useProfileStore((s) => s.isLoading);
   const error = useProfileStore((s) => s.error);
   const loadProfile = useProfileStore((s) => s.loadProfile);
+  const walletAddress = useWalletStore((s) => s.publicKey);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -61,9 +64,7 @@ export default function ProfileSummaryCard() {
                 draggable={false}
               />
             ) : (
-              <span className="text-base font-bold text-[#2C4BFD]" aria-hidden>
-                {initialsFromName(displayName)}
-              </span>
+              <IdenticonAvatar address={walletAddress} name={displayName} className="h-full w-full" />
             )}
           </div>
 

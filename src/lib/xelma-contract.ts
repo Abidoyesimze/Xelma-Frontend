@@ -199,8 +199,9 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const errorMsg = 'error' in simulation ? simulation.error : 'Simulation was not successful';
+    throw new Error(`Simulation failed: ${errorMsg}`);
   }
 
   // Prepare applies the simulation footprint & resource fee to the tx
@@ -209,13 +210,15 @@ async function simulateContractCall(
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = simulation.minResourceFee ? Number(simulation.minResourceFee) : 0;
 
+  const cost = simulation.cost as unknown as Record<string, unknown> | undefined;
+
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
-    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
+    readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
+    writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
   };
 }
 

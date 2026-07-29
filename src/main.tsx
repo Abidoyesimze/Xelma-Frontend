@@ -1,3 +1,4 @@
+/// <reference types="vite-plugin-pwa/client" />
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -9,12 +10,12 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       immediate: true,
-      onRegistered(registration) {
+      onRegistered(registration?: ServiceWorkerRegistration) {
         if (registration) {
           registration.update();
         }
       },
-      onRegisterError(error) {
+      onRegisterError(error: unknown) {
         console.warn('Service worker registration failed:', error)
       },
     })

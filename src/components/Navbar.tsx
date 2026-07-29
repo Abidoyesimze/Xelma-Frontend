@@ -5,12 +5,15 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Menu, X, Search } from 'lucide-react';
+import type { ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Menu, X } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
+import MaskedBalance from './MaskedBalance';
 
 interface NavLinkItem {
   labelKey: string;
@@ -161,7 +164,7 @@ export default function Navbar() {
                 className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 hover:border-[#2C4BFD]/40 hover:text-white transition-colors"
                 aria-label="Open command palette (Ctrl+K)"
               >
-                <Search className="w-4 h-4" />
+                <span aria-hidden className="text-xs">⌘</span>
                 <span className="text-xs">Ctrl+K</span>
               </button>
               <NetworkBadge />
@@ -185,9 +188,10 @@ export default function Navbar() {
               </div>
               {isConnected && publicKey ? (
                 <>
-                  <span className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
-                    {balance ? `${balance} vXLM` : '… vXLM'}
-                  </span>
+                  <MaskedBalance
+                    value={balance ? `${balance} vXLM` : '… vXLM'}
+                    className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200"
+                  />
                   <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-gray-300">
                     {truncateAddress(publicKey)}
                   </span>
@@ -287,9 +291,10 @@ export default function Navbar() {
                 <div className="flex flex-col gap-3 mb-2">
                   <div className="flex items-center justify-between px-2">
                     <span className="text-sm text-gray-400">{t('navbar.balance')}</span>
-                    <span className="text-sm font-semibold text-cyan-200">
-                      {balance ? `${balance} vXLM` : '… vXLM'}
-                    </span>
+                    <MaskedBalance
+                      value={balance ? `${balance} vXLM` : '… vXLM'}
+                      className="text-sm font-semibold text-cyan-200"
+                    />
                   </div>
                   <div className="flex items-center justify-between px-2">
                     <span className="text-sm text-gray-400">{t('navbar.address')}</span>

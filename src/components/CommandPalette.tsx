@@ -72,7 +72,8 @@ export default function CommandPalette() {
 
   // Reset selected index when filtered list changes
   useEffect(() => {
-    setSelectedIndex(0);
+    const reset = window.setTimeout(() => setSelectedIndex(0), 0);
+    return () => window.clearTimeout(reset);
   }, [query]);
 
   // Scroll selected item into view

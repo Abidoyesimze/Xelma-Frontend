@@ -6,18 +6,13 @@ import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  import('virtual:pwa-register').then(({ registerSW }) => {
-    registerSW({
-      immediate: true,
-      onRegistered(registration) {
-        if (registration) {
-          registration.update();
-        }
-      },
-      onRegisterError(error) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => registration.update())
+      .catch((error: unknown) => {
         console.warn('Service worker registration failed:', error)
-      },
-    })
+      })
   })
 }
 

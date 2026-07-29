@@ -473,10 +473,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
             <button
               onClick={handleConfirm}
-              disabled={!isConnected || feeEstimateStatus === 'failed'}
+              disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              {feeEstimateStatus === 'failed' ? 'Simulation failed — check details' : 'Confirm'}
+              Confirm
             </button>
           </div>
         )}

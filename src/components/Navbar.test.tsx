@@ -1,8 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Navbar from './Navbar';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import '../i18n';
+import i18n from '../i18n';
 
 // Mock the wallet store
 vi.mock('../store/useWalletStore', () => ({
@@ -58,6 +60,10 @@ describe('Navbar', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
   describe('disconnected state', () => {
     beforeEach(() => {
       vi.mocked(useWalletStore).mockImplementation(makeStoreMock({ status: 'idle' }) as Parameters<typeof vi.mocked>[0]);
@@ -89,6 +95,16 @@ describe('Navbar', () => {
       renderNavbar();
       expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument();
       expect(screen.queryByText(/vXLM/)).not.toBeInTheDocument();
+    });
+
+    it('allows switching languages via the language selector', async () => {
+      renderNavbar();
+      const languageSelect = screen.getByRole('combobox', { name: /language/i });
+      expect(languageSelect).toBeInTheDocument();
+
+      fireEvent.change(languageSelect, { target: { value: 'es' } });
+
+      expect(await screen.findByRole('button', { name: /conectar cartera/i })).toBeInTheDocument();
     });
   });
 

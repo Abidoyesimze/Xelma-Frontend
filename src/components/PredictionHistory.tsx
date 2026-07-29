@@ -2,17 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { predictionsApi, type UserPrediction } from "../lib/api-client";
 import { LoadingState, ErrorState, EmptyState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
-import { formatVXLM } from "../lib/utils";
+import { formatVXLM, formatRelativeTime } from "../lib/utils";
 
 interface PredictionHistoryProps {
   userId: string | null;
-}
-
-function formatDate(value?: string): string {
-  if (!value) return "Unknown time";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
-  return date.toLocaleString();
 }
 
 function formatStake(value?: string | number): string {
@@ -126,7 +119,13 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
                     • Stake: {formatStake(prediction.stake)}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDate(typeof prediction.createdAt === "string" ? prediction.createdAt : undefined)}
+                    {(() => {
+  const raw = prediction.createdAt;
+  if (typeof raw !== "string") return "Unknown time";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+  return formatRelativeTime(date);
+})()}
                   </p>
                 </div>
 

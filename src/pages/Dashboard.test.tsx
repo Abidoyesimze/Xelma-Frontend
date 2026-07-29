@@ -119,10 +119,6 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
-vi.mock('react-router-dom', () => ({
-  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
-  useNavigate: () => vi.fn(),
-}));
 
 // Mock all the components to focus on integration logic
 

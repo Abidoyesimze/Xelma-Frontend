@@ -88,6 +88,7 @@ proxies `/api` and `/socket.io` to `http://localhost:3000` (configure via
 | `pnpm preview`       | Serve the contents of `dist/` locally to smoke-test the prod build.    |
 | `pnpm lint`          | Run the ESLint flat config over the repo.                              |
 | `pnpm test:unit`     | Run the Vitest unit/integration suite once (CI mode).                 |
+| `pnpm test:a11y`     | Run axe-core accessibility smoke tests on Landing and Dashboard.      |
 | `pnpm test`          | Full CI bundle: `lint && build && test:unit`. Use this before pushing. |
 
 > `npm run <script>` works identically if you prefer npm.
@@ -333,6 +334,25 @@ Run the full CI gate (lint + build + tests):
 ```bash
 pnpm test
 ```
+
+### Accessibility smoke tests
+
+Accessibility smoke tests run [axe-core](https://github.com/dequelabs/axe-core) against
+the **Landing** and **Dashboard** pages in a jsdom environment (Vitest) and fail the
+build on **serious** or **critical** violations of WCAG 2.0/2.1 Level A/AA rules.
+
+Run accessibility tests locally:
+
+```bash
+pnpm test:a11y
+```
+
+These tests are also wired into the CI pipeline (`npm run test:a11y` step) and will
+block PRs that introduce serious a11y regressions.
+
+**Note:** The `color-contrast` rule is disabled because it cannot be reliably evaluated
+in jsdom (no actual rendering engine). Visual contrast should be verified manually
+or via Playwright browser-based tests.
 
 ---
 

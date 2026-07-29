@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import "./PredictionCard.css";
 
 const EXACT_PRICE_MIN = 0.0001;
@@ -142,8 +142,34 @@ export function PredictionControls({
 
   const canSubmit = Boolean(stake) && !stakeError && (!isLegend || (exactPrice && !exactPriceError));
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const handlePredictionRef = useRef(handlePrediction);
+  handlePredictionRef.current = handlePrediction;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
+
+      const key = e.key;
+      if (key === "u" || key === "U" || key === "ArrowUp") {
+        e.preventDefault();
+        handlePredictionRef.current("UP");
+      } else if (key === "d" || key === "D" || key === "ArrowDown") {
+        e.preventDefault();
+        handlePredictionRef.current("DOWN");
+      }
+    };
+
+    el.addEventListener("keydown", onKeyDown);
+    return () => el.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
-    <>
+    <div ref={containerRef}>
       <h2 className="prediction-card__title">Guess price prediction</h2>
 
       {isConnecting && (
@@ -184,6 +210,13 @@ export function PredictionControls({
           <span className="prediction-card__button-text">DOWN</span>
         </button>
       </div>
+
+      <p className="prediction-card__shortcut-hint" aria-hidden="true">
+        <kbd>U</kbd> <kbd>↑</kbd> UP · <kbd>D</kbd> <kbd>↓</kbd> DOWN
+      </p>
+      <span className="sr-only">
+        Keyboard shortcuts: Press U or Arrow Up to select UP, press D or Arrow Down to select DOWN. Shortcuts are disabled while typing in text fields.
+      </span>
 
       <div className="prediction-card__stake-section">
         <label htmlFor="stake-input" className="prediction-card__label">
@@ -278,7 +311,7 @@ export function PredictionControls({
           {isWalletConnected && !isRoundActive && <p>This round is not active</p>}
         </div>
       )}
-    </>
+    </div>
   );
 }
 

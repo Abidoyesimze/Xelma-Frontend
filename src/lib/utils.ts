@@ -49,3 +49,25 @@ export function formatCompactNumber(value: number, decimals = 2): string {
   }
   return `${sign}${abs.toFixed(decimals)}`;
 }
+
+/**
+ * Format a date as a relative time string (e.g. "just now", "5m ago", "3h ago", "2d ago").
+ * Falls back to toLocaleDateString for dates older than 30 days.
+ */
+export function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+
+  if (diffMs < 0) return "just now";
+
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}

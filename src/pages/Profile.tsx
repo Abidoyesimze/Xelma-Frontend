@@ -11,7 +11,9 @@ import {
   UserRound,
 } from 'lucide-react';
 import ProfileSettingsModal from '../components/ProfileSettingsModal';
+import IdenticonAvatar from '../components/IdenticonAvatar';
 import { useProfileStore } from '../store/useProfileStore';
+import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
 
 const defaultProfile: ProfileSettingsValues = {
@@ -59,6 +61,7 @@ function displayHandle(url: string) {
 
 function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
   const displayName = profile.name.trim() || 'Player';
+  const walletAddress = useWalletStore((s) => s.publicKey);
 
   return (
     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-[#BEC7FE]/20 bg-[#111827] shadow-lg shadow-[#2C4BFD]/10 sm:h-32 sm:w-32">
@@ -70,9 +73,7 @@ function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
           draggable={false}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-[#162033] text-3xl font-black text-[#BEC7FE]">
-          {initialsFromName(displayName)}
-        </div>
+        <IdenticonAvatar address={walletAddress} name={displayName} className="h-full w-full" />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
+import ContributorTaskPlaceholder from '../ContributorTaskPlaceholder';
 import type { Guide } from '../../types/education';
 import { cn } from '../../lib/utils';
 

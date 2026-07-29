@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
+import CommandPalette from './components/CommandPalette';
 import PageSkeleton from './components/PageSkeleton';
 import Landing from './pages/Landing';
 import RouteFallback from './components/RouteFallback';
@@ -10,8 +11,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
 import ComingSoonPage from './pages/ComingSoonPage';
+import OnboardingChecklist from './components/OnboardingChecklist';
 import { Trophy } from 'lucide-react';
-import { ENTER } from './utils/motion';
 
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
@@ -36,6 +37,7 @@ function App() {
       </a>
       <OfflineBanner />
       <Navbar />
+      <CommandPalette />
       <ErrorBoundary>
         <LazyBoundary>
           <Suspense fallback={<RouteFallback />}>
@@ -66,6 +68,7 @@ function App() {
       </ErrorBoundary>
       {showGlobalFooter && <Footer />}
       <Toaster richColors position="top-center" theme="dark" />
+      <OnboardingChecklist />
     </div>
   );
 }

@@ -23,6 +23,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - [Deployment](#deployment) ← production / Vercel guide
 - [Education & Learn page](#education--learn-page)
 - [Project structure notes](#project-structure-notes)
+- [Localization](#localization)
 - [Testing](#testing)
 - [React Compiler / ESLint notes](#react-compiler--eslint-notes)
 
@@ -294,6 +295,16 @@ social/notification consolidation is tracked in issue
 [#130](https://github.com/TevaLabs/Xelma-Frontend/issues/130).
 
 ---
+
+## Localization
+
+This project uses `react-i18next` for lightweight frontend internationalization.
+
+- Translation resources live under `src/locales/`.
+- The application initializes i18n in `src/i18n.ts` and loads English (`en`) by default.
+- A stub Spanish locale (`es`) is included with the same translation keys.
+- Missing translations fall back to English, so the app remains stable when a key is absent.
+- Add a new language by creating a resource file under `src/locales/`, registering it in `src/i18n.ts`, and adding new translated keys for the supported UI strings.
 
 ## Testing
 

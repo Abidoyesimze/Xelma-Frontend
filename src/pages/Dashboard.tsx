@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
+import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 import { mockUserStats } from "../data/mockData";
 import type { RecentActivityItem } from "../types";
@@ -337,6 +338,7 @@ const Dashboard = () => {
           <EmptyState
             title="No Active Rounds"
             description="Learn how the game works or refresh to check for new rounds."
+            icon={<NoRoundsIllustration className="mb-4" />}
             action={
               <button
                 type="button"

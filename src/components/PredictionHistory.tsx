@@ -53,6 +53,7 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
           title="Connect your wallet"
           message="Connect your wallet to view your prediction history."
           className="min-h-[200px]"
+          variant="no-history"
         />
       </section>
     );
@@ -88,6 +89,7 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
           title="No predictions yet"
           message="Start making predictions to see your history here."
           className="min-h-[200px]"
+          variant="no-history"
         />
       )}
 

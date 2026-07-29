@@ -99,6 +99,7 @@ const DailyTip = () => {
     return (
       <div
         className="rounded-2xl glass-card accent-border-teal p-6 animate-pulse"
+        role="status"
         aria-busy="true"
         aria-label="Loading daily tip"
       >

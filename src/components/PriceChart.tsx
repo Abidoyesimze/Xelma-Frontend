@@ -10,7 +10,6 @@ import {
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
 import { mergePricePoints, toCandlestickData } from "./PriceChart.helpers";
-import { mergePricePoints } from "./PriceChart.helpers";
 import { mockPriceData } from "../data/mockData";
 import type { Asset } from "../types/asset";
 import { socketService } from "../lib/socket";
@@ -112,7 +111,6 @@ function persistChartMode(mode: ChartMode): void {
   }
 }
 
-const PriceChart = ({ height = 300 }: PriceChartProps) => {
 const ASSET_COLORS: Record<string, string> = {
   BTC: "#F7931A",
   ETH: "#627EEA",
@@ -229,18 +227,6 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
       });
       seriesRef.current = candlestickSeries;
     }
-    const lineSeries = chart.addSeries(LineSeries, {
-      color: "#FFF",
-      lineWidth: 3,
-      priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-      lineType: 2, // LineType.Curved
-    });
-
-    seriesRef.current = lineSeries;
-
     return () => {
       chart.remove();
       chartRef.current = null;

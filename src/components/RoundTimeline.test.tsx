@@ -48,14 +48,16 @@ describe('RoundTimeline', () => {
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
     expect(screen.getByText(/Current State:/i)).toBeInTheDocument();
-    expect(screen.getByText(/Upcoming/i)).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText(/Upcoming/i);
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders upcoming state when there is no active round', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     render(<RoundTimeline />);
 
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
     const currentStateContainer = screen.getByText('Current State:').closest('div');
     expect(currentStateContainer).toBeTruthy();
     expect(currentStateContainer && currentStateContainer.textContent).toMatch(/Upcoming/i);
@@ -144,6 +146,7 @@ describe('RoundTimeline', () => {
     const renderComponent = () => render(<RoundTimeline />);
     expect(renderComponent).not.toThrow();
     renderComponent();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
   });
 });

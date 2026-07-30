@@ -26,6 +26,22 @@ let placeBetImpl: () => Promise<{ txHash: string }> = async () => ({ txHash: 'TX
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: (...args: any[]) => placeBetImpl(),
   place_precision_prediction: (...args: any[]) => placeBetImpl(),
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00005',
+    totalFee: '0.00006',
+    instructions: '1000000',
+    readBytes: '500',
+    writeBytes: '200',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00006',
+    totalFee: '0.00007',
+    instructions: '1200000',
+    readBytes: '600',
+    writeBytes: '300',
+  }),
 }));
 
 vi.mock('../lib/api-client', () => ({

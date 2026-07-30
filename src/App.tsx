@@ -65,6 +65,7 @@ function App() {
               />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
+              <Route path="*" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><NotFound /></Suspense>} />
             </Routes>
           </Suspense>
         </LazyBoundary>

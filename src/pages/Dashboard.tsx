@@ -1,9 +1,15 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
 import StatsCard from "../components/StatsCard";
 import RecentActivity from "../components/RecentActivity";
+import RoundCard from "../components/RoundCard";
+import AssetTabs from "../components/AssetTabs";
+import { ASSETS } from "../constants/assets";
+import type { Asset } from "../types/asset";
+
 import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
@@ -15,12 +21,11 @@ import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
 import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
-import { Link } from "react-router-dom";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import DashboardSkeleton from '../components/DashboardSkeleton';
-import { mockUserStats } from "../data/mockData";
+import { mockUserStats, mockRounds } from "../data/mockData";
 import type { RecentActivityItem } from "../types";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
@@ -157,6 +162,17 @@ const Dashboard = () => {
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  // Asset tab state from URL query param
+  const [searchParams] = useSearchParams();
+  const selectedAsset = (searchParams.get("asset") as Asset) || "XLM";
+  const normalizedAsset = ASSETS.includes(selectedAsset) ? selectedAsset : "XLM";
+
+  // Filter mock rounds by the selected asset
+  const filteredRounds = useMemo(
+    () => mockRounds.filter((r) => r.asset === normalizedAsset),
+    [normalizedAsset],
+  );
 
   const fetchStats = useCallback(async () => {
     if (!isWalletConnected) {
@@ -319,6 +335,49 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Asset filter tabs — always visible when content is loaded */}
+        {!isLoading && (
+          <div className="mb-6" role="tabpanel" id={`asset-panel-${normalizedAsset}`} aria-labelledby={`asset-tab-${normalizedAsset}`}>
+            <AssetTabs className="mb-6" />
+
+            {/* Rounds grid filtered by selected asset */}
+            {filteredRounds.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRounds.map((round) => (
+                  <RoundCard
+                    key={round.id}
+                    round={round}
+                    onSubmitPrediction={() => {
+                      setPendingPrediction({
+                        direction: "UP",
+                        stake: "0",
+                        isLegend: false,
+                      });
+                      setIsBetModalOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title={`No ${normalizedAsset} Rounds Available`}
+                description={`There are currently no active rounds for ${normalizedAsset === 'BTC' ? 'Bitcoin' : normalizedAsset === 'ETH' ? 'Ethereum' : 'Stellar'}. Try selecting a different asset or check back later.`}
+                action={
+                  <button
+                    type="button"
+                    className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold"
+                    onClick={() => {
+                      void useRoundStore.getState().fetchActiveRound();
+                    }}
+                  >
+                    Refresh
+                  </button>
+                }
+              />
+            )}
+          </div>
+        )}
+
         {!isLoading && !isWalletConnected && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">
             <p className="leading-relaxed" data-testid="dashboard-wallet-prompt">
@@ -375,8 +434,8 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-                <PriceChart height={280} />
+              <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+                <PriceChart height={280} asset={normalizedAsset} />
               </div>
               {isWalletConnected && (
                 <RecentActivity

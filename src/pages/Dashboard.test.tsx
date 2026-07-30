@@ -40,7 +40,7 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
-  useNavigate: () => vi.fn(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 import { useRoundStore } from '../store/useRoundStore';

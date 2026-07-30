@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
@@ -95,8 +95,6 @@ const RoundTimeline: React.FC = () => {
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- state placeholder for round transition history scaffolding
-  const [_prevCurrentState, _setPrevCurrentState] = useState(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
   const prevStateRef = useRef(currentState);
 

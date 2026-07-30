@@ -1,5 +1,4 @@
 import ContributorTaskPlaceholder from '../ContributorTaskPlaceholder';
-
 import type { Tip } from '../../types/education';
 import { cn } from '../../lib/utils';
 

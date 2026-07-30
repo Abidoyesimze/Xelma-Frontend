@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import Landing from './Landing';
+import '../i18n';
+import i18n from '../i18n';
 
 vi.mock('../components/HowItWorks', () => ({
   default: () => <div data-testid="how-it-works-mock">How It Works Mock</div>
@@ -11,6 +13,10 @@ vi.mock('../components/HowItWorks', () => ({
 vi.mock('../components/ModeCards', () => ({
   default: () => <div data-testid="mode-cards-mock">Mode Cards Mock</div>
 }));
+
+afterEach(async () => {
+  await i18n.changeLanguage('en');
+});
 
 describe('Landing Page', () => {
   it('renders hero section with headline and subtitle', () => {
@@ -60,6 +66,26 @@ describe('Landing Page', () => {
     expect(screen.getByText(/rounds resolved/i)).toBeInTheDocument();
     expect(screen.getByText(/practice volume/i)).toBeInTheDocument();
     expect(screen.getByText(/active predictors/i)).toBeInTheDocument();
+  });
+
+  it('renders Spanish translations when locale is changed to es', async () => {
+    await i18n.changeLanguage('es');
+
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+
+    const heroHeading = screen.getByRole('heading', { level: 1 });
+    expect(heroHeading).toHaveTextContent(/lee el mercado/i);
+    expect(heroHeading).toHaveTextContent(/demuestra tu llamada/i);
+    expect(screen.getByRole('link', { name: /entrar a la terminal de predicción/i })).toBeInTheDocument();
+  });
+
+  it('falls back to English when a translation key is missing in the selected locale', async () => {
+    await i18n.changeLanguage('es');
+    expect(i18n.t('testFallback')).toBe('Fallback test');
   });
 
   it('renders HowItWorks and ModeCards components', () => {

@@ -55,6 +55,8 @@ export default function BalancesPanel({ className }: { className?: string }) {
   const status = useWalletStore((s) => s.status);
   const isConnected = status === 'connected' && Boolean(publicKey);
 
+  /** Address the loaded balances belong to, so a wallet switch never shows stale numbers. */
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [data, setData] = useState<AccountBalances | null>(null);
   const [state, setState] = useState<LoadState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -63,12 +65,7 @@ export default function BalancesPanel({ className }: { className?: string }) {
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
-    if (!publicKey || !isConnected) {
-      setData(null);
-      setState('idle');
-      setError(null);
-      return;
-    }
+    if (!publicKey || !isConnected) return;
 
     const controller = new AbortController();
 
@@ -79,6 +76,7 @@ export default function BalancesPanel({ className }: { className?: string }) {
         const result = await fetchAccountBalances(publicKey, controller.signal);
         if (controller.signal.aborted) return;
         setData(result);
+        setLoadedFor(publicKey);
         setState('loaded');
       } catch (err) {
         if (controller.signal.aborted) return;
@@ -94,7 +92,11 @@ export default function BalancesPanel({ className }: { className?: string }) {
 
   if (!isConnected) return null;
 
-  const hasTrustlines = (data?.trustlines.length ?? 0) > 0;
+  // Treat data fetched for a different address as not yet loaded.
+  const isFresh = loadedFor === publicKey;
+  const balances = isFresh ? data : null;
+  const viewState: LoadState = state === 'loaded' && !isFresh ? 'loading' : state;
+  const hasTrustlines = (balances?.trustlines.length ?? 0) > 0;
 
   return (
     <section
@@ -123,16 +125,16 @@ export default function BalancesPanel({ className }: { className?: string }) {
           <button
             type="button"
             onClick={refresh}
-            disabled={state === 'loading'}
+            disabled={viewState === 'loading'}
             className="rounded p-1.5 text-gray-500 transition-colors hover:text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
             aria-label="Refresh balances"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${state === 'loading' ? 'animate-spin' : ''}`} aria-hidden />
+            <RefreshCw className={`h-3.5 w-3.5 ${viewState === 'loading' ? 'animate-spin' : ''}`} aria-hidden />
           </button>
         </div>
       </div>
 
-      {state === 'loading' && (
+      {viewState === 'loading' && (
         <div className="space-y-2 py-1" aria-busy="true" aria-label="Loading balances">
           <div className="h-8 w-2/3 animate-pulse rounded bg-white/5" />
           <div className="h-4 w-1/2 animate-pulse rounded bg-white/5" />
@@ -140,7 +142,7 @@ export default function BalancesPanel({ className }: { className?: string }) {
         </div>
       )}
 
-      {state === 'error' && (
+      {viewState === 'error' && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3" role="alert">
           <div className="flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
@@ -160,7 +162,7 @@ export default function BalancesPanel({ className }: { className?: string }) {
         </div>
       )}
 
-      {state === 'loaded' && data?.isUnfunded && (
+      {viewState === 'loaded' && balances?.isUnfunded && (
         <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] p-4 text-center">
           <p className="text-sm font-semibold text-gray-300">Account not funded</p>
           <p className="mt-1 text-xs text-gray-500">
@@ -169,12 +171,12 @@ export default function BalancesPanel({ className }: { className?: string }) {
         </div>
       )}
 
-      {state === 'loaded' && data && !data.isUnfunded && (
+      {viewState === 'loaded' && balances && !balances.isUnfunded && (
         <>
           <div className="flex items-baseline justify-between gap-3 border-b border-white/5 pb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">XLM</span>
             <span className="font-mono text-lg font-bold text-white">
-              {data.native ? formatBalance(data.native.balance) : '0.00'}
+              {balances.native ? formatBalance(balances.native.balance) : '0.00'}
             </span>
           </div>
 
@@ -184,7 +186,7 @@ export default function BalancesPanel({ className }: { className?: string }) {
             </p>
             {hasTrustlines ? (
               <ul className="divide-y divide-white/5">
-                {data.trustlines.map((line) => (
+                {balances.trustlines.map((line) => (
                   <TrustlineRow
                     key={`${line.code}-${line.issuer ?? 'none'}`}
                     code={line.code}

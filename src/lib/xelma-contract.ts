@@ -1,5 +1,5 @@
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
+import { freighterAdapter } from './wallets';
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID = import.meta.env.VITE_XELMA_CONTRACT_ID || 'CD7V3L7JIP52EXWLYSOWXND4F3N65QZ2R54H6M77Y3S37Z55XHLXELMA';
@@ -128,30 +128,18 @@ async function executeContractCall(
     throw new Error('Failed to assemble transaction layout with simulated resources.');
   }
 
-  // 5. Sign with Freighter wallet
-  let signedResult;
+  // 5. Sign with the connected wallet
+  let signedXdrString: string;
   try {
     onStatus?.('signing');
-    signedResult = await signTransaction(preparedTx.toXDR(), {
+    signedXdrString = await freighterAdapter.signTransaction(preparedTx.toXDR(), {
       networkPassphrase: NETWORK_PASSPHRASE,
     });
   } catch (err) {
-    console.error('Freighter sign transaction error:', err);
-    throw new Error('Failed to sign transaction with Freighter wallet.');
-  }
-
-  let signedXdrString: string | null = null;
-  if (typeof signedResult === 'string') {
-    signedXdrString = signedResult;
-  } else if (signedResult && typeof signedResult === 'object') {
-    if ('error' in signedResult && signedResult.error) {
-      throw new Error(`Freighter signing rejected: ${signedResult.error}`);
-    }
-    signedXdrString = (signedResult as { signedTxXdr?: string }).signedTxXdr || null;
-  }
-
-  if (!signedXdrString) {
-    throw new Error('Signing cancelled or rejected by user.');
+    console.error('Wallet sign transaction error:', err);
+    throw new Error(
+      err instanceof Error ? err.message : 'Failed to sign transaction with your wallet.',
+    );
   }
 
   // 6. Submit the signed transaction to RPC

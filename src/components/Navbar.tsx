@@ -7,6 +7,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Menu, X, Search } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
@@ -64,10 +66,27 @@ export default function Navbar() {
   const currentLanguage = (i18n.language || 'en').split('-')[0];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
+
+  // Only Freighter is wired today; the picker disables every other adapter, so a
+  // selection always resolves to the store's Freighter connect flow.
+  const handleSelectWallet = useCallback(
+    async (id: WalletId) => {
+      setPickedWallet(id);
+      try {
+        await connect();
+        setIsPickerOpen(false);
+      } finally {
+        setPickedWallet(null);
+      }
+    },
+    [connect],
+  );
 
   const handleLanguageChange = (event: ChangeEvent<HTMLSelectElement>) => {
     void i18n.changeLanguage(event.target.value);
@@ -196,7 +215,7 @@ export default function Navbar() {
  
               <button
                 type="button"
-                onClick={() => void connect()}
+                onClick={() => setIsPickerOpen(true)}
                 disabled={isConnecting}
                 className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
               >
@@ -303,8 +322,8 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => {
-                  void connect();
-                  if (isConnected) closeMenu(); // optional: keep open if starting connect flow
+                  closeMenu();
+                  setIsPickerOpen(true);
                 }}
                 disabled={isConnecting}
                 className="btn-primary w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60"
@@ -315,6 +334,14 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      <WalletPicker
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleSelectWallet}
+        isConnecting={isConnecting}
+        connectingId={pickedWallet}
+      />
     </>
   );
 }

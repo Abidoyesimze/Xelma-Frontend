@@ -30,6 +30,7 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 import Dashboard from './Dashboard';

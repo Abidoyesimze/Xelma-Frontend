@@ -10,6 +10,9 @@ import {
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
 import { mergePricePoints, toCandlestickData } from "./PriceChart.helpers";
+import { mergePricePoints } from "./PriceChart.helpers";
+import { mockPriceData } from "../data/mockData";
+import type { Asset } from "../types/asset";
 import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
@@ -18,6 +21,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
   height?: number;
+  asset?: Asset;
 }
 
 type PriceUpdatePayload = {
@@ -109,6 +113,19 @@ function persistChartMode(mode: ChartMode): void {
 }
 
 const PriceChart = ({ height = 300 }: PriceChartProps) => {
+const ASSET_COLORS: Record<string, string> = {
+  BTC: "#F7931A",
+  ETH: "#627EEA",
+  XLM: "#FFFFFF",
+};
+
+const ASSET_BG: Record<string, string> = {
+  BTC: "linear-gradient(135deg, #3a2410, #1a120a)",
+  ETH: "linear-gradient(135deg, #1e2240, #0a0d1a)",
+  XLM: "linear-gradient(135deg, #1e3a5f, #0a1929)",
+};
+
+const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Line"> | ISeriesApi<"Candlestick"> | null>(null);
@@ -122,6 +139,9 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
   const [badgeY, setBadgeY] = useState<number | null>(null);
   // y-coordinates for each price label
   const [labelYs, setLabelYs] = useState<number[]>([]);
+
+  // Asset-aware styling (hoisted for use in effects below)
+  const lineColor = ASSET_COLORS[asset] ?? "#FFFFFF";
 
   // Refs for performance optimization
   const dataRef = useRef<PricePoint[]>([]);
@@ -209,6 +229,17 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
       });
       seriesRef.current = candlestickSeries;
     }
+    const lineSeries = chart.addSeries(LineSeries, {
+      color: "#FFF",
+      lineWidth: 3,
+      priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+      lineType: 2, // LineType.Curved
+    });
+
+    seriesRef.current = lineSeries;
 
     return () => {
       chart.remove();
@@ -404,9 +435,29 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
     }
   }, []);
 
+  // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
+    setData([]);
+    setIsLoading(true);
+    setLoadError(null);
+
+    // Use mock data directly for instant visual feedback per asset
+    const mockData = mockPriceData[asset];
+    if (mockData && mockData.length > 0) {
+      setData(mockData);
+      setLastUpdatedAt(new Date());
+      setIsLoading(false);
+    }
+
+    // Also attempt to fetch live data from API
     void loadInitialPrices();
-  }, [loadInitialPrices]);
+  }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update chart line color when asset changes
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    seriesRef.current.applyOptions({ color: lineColor });
+  }, [lineColor]);
 
   useEffect(() => {
     // Connect to socket only once when component mounts
@@ -456,6 +507,9 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
 
   const { isConnected } = useConnectionStatus();
 
+  const bgGradient = ASSET_BG[asset] ?? ASSET_BG.XLM;
+  const borderColor = asset === "BTC" ? "#F7931A" : asset === "ETH" ? "#627EEA" : "#1e3a5f";
+
   return (
     <div className="w-full h-full flex flex-col">
       <PanelHeader
@@ -463,12 +517,12 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
         icon={
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #1e3a5f, #0a1929)" }}
+            style={{ background: bgGradient }}
           >
-            <span className="text-white text-xs font-bold">XLM</span>
+            <span className="text-white text-xs font-bold">{asset}</span>
           </div>
         }
-        title="XLM/USD"
+        title={`${asset}/USD`}
         status={isConnected ? { label: "LIVE", variant: "success" } : { label: "OFFLINE", variant: "default" }}
         action={
           <div className="flex items-center gap-3">
@@ -513,8 +567,8 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
         }
       />
 
-      {/* Chart area wrapper with padded border — azul marino */}
-      <div className="relative w-full flex-1 rounded-2xl border-[3px] border-[#1e3a5f]" style={{ minHeight: height, background: "linear-gradient(180deg, #1e3a5f 0%, #13274F 50%, #0a1929 100%)" }}>
+      {/* Chart area wrapper with padded border */}
+      <div className="relative w-full flex-1 rounded-2xl border-[3px]" style={{ minHeight: height, borderColor, background: bgGradient }}>
 
         <div className="relative w-full h-full rounded-xl overflow-hidden shadow-inner">
           {/* Montañas (imagen de fondo) */}

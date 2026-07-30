@@ -212,10 +212,10 @@ describe('Dashboard Terminal & Round Flows', () => {
         </div>
       );
 
-      // Verify round cards render asset headings
-      expect(screen.getByText('BTC/USD')).toBeInTheDocument();
-      expect(screen.getByText('ETH/USD')).toBeInTheDocument();
-      expect(screen.getByText('XLM/USD')).toBeInTheDocument();
+      // Verify round cards render asset headings (multiple rounds per asset)
+      expect(screen.getAllByText('BTC/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ETH/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('XLM/USD').length).toBeGreaterThanOrEqual(1);
 
       // Verify round details and pool statistics
       expect(screen.getByText(/reference \$67,420/i)).toBeInTheDocument();

@@ -6,15 +6,16 @@ import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  // @ts-expect-error virtual:pwa-register module provided by vite-plugin-pwa
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       immediate: true,
-      onRegistered(registration) {
+      onRegistered(registration: any) {
         if (registration) {
           registration.update();
         }
       },
-      onRegisterError(error) {
+      onRegisterError(error: any) {
         console.warn('Service worker registration failed:', error)
       },
     })

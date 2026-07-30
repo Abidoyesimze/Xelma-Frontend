@@ -199,8 +199,8 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    throw new Error(`Simulation failed: ${(simulation as any).error ?? 'Unknown simulation error'}`);
   }
 
   // Prepare applies the simulation footprint & resource fee to the tx
@@ -214,8 +214,8 @@ async function simulateContractCall(
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
     instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    readBytes: (simulation.cost as any)?.readBytes ? String((simulation.cost as any).readBytes) : '0',
+    writeBytes: (simulation.cost as any)?.writeBytes ? String((simulation.cost as any).writeBytes) : '0',
   };
 }
 

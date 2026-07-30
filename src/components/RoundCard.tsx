@@ -36,8 +36,7 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- endTime state tracked for round close synchronization
-  const [_endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
 
 
   const total = poolSize(round);

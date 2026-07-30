@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useProfileStore } from "../store/useProfileStore";
+import { useWalletStore } from "../store/useWalletStore";
 import type { ProfileSettingsValues } from "../lib/profileApi";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { MODAL_OVERLAY, MODAL_CONTENT } from "../utils/motion";
+import IdenticonAvatar from "./IdenticonAvatar";
+import AvatarCropModal from "./AvatarCropModal";
 
 type Props = {
   onClose: () => void;
@@ -13,6 +16,8 @@ type Props = {
 
 const BIO_MAX = 100;
 const DRAFT_KEY = "profile_settings_draft_v1";
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -73,8 +78,10 @@ function ProfileSettingsForm({
   resolved: ProfileSettingsValues;
 }) {
   const saveProfile = useProfileStore((s) => s.saveProfile);
+  const walletAddress = useWalletStore((s) => s.publicKey);
 
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(resolved.avatarUrl);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [name, setName] = useState(resolved.name);
   const [bio, setBio] = useState(resolved.bio);
   const [twitterLink, setTwitterLink] = useState(resolved.twitterLink);
@@ -89,6 +96,7 @@ function ProfileSettingsForm({
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useFocusTrap(modalRef, {
     active: true,
@@ -137,10 +145,42 @@ function ProfileSettingsForm({
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
 
-    if (avatarPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(avatarPreviewUrl);
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("Invalid file type", {
+        description: "Please upload a PNG, JPG, WEBP, or GIF image.",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
-    const url = URL.createObjectURL(file);
-    setAvatarPreviewUrl(url);
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast.error("File too large", {
+        description: "Avatar image size must be 5 MB or smaller.",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCropImageSrc(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleCropComplete = (croppedUrl: string) => {
+    if (avatarPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(avatarPreviewUrl);
+    setAvatarPreviewUrl(croppedUrl);
+    setCropImageSrc(null);
+  };
+
+  const handleRemoveAvatar = () => {
+    if (avatarPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(avatarPreviewUrl);
+    setAvatarPreviewUrl(null);
   };
 
   const handleSave = async () => {
@@ -227,8 +267,8 @@ function ProfileSettingsForm({
             <p id="profile-settings-description" className="sr-only">
               Update your profile name, avatar, bio, links, and streamer mode.
             </p>
-            <div className="flex gap-6 items-center">
-              <div className="h-24 w-24 rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+            <div className="flex flex-wrap gap-6 items-center">
+              <div className="h-24 w-24 rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 overflow-hidden flex items-center justify-center shrink-0">
                 {avatarPreviewUrl ? (
                   <img
                     src={avatarPreviewUrl}
@@ -237,27 +277,45 @@ function ProfileSettingsForm({
                     draggable={false}
                   />
                 ) : (
-                  <div className="text-gray-500 dark:text-gray-400 text-left">
-                    <div className="text-base font-medium leading-tight">Avatar</div>
-                    <div className="text-base font-medium leading-tight">preview</div>
-                  </div>
+                  <IdenticonAvatar address={walletAddress} name={name} className="h-full w-full" />
                 )}
               </div>
 
-              <label
-                htmlFor="profile-avatar-upload"
-                className="inline-flex cursor-pointer select-none items-center justify-center rounded-xl bg-[#2C4BFD] px-7 py-3 text-sm font-semibold text-white hover:opacity-95 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#2C4BFD] focus-within:ring-offset-2 dark:focus-within:ring-offset-gray-900"
-              >
-                UPLOAD
-                <input
-                  id="profile-avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={handleUploadChange}
-                />
-              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <label
+                  htmlFor="profile-avatar-upload"
+                  className="inline-flex cursor-pointer select-none items-center justify-center rounded-xl bg-[#2C4BFD] px-6 py-3 text-sm font-semibold text-white hover:opacity-95 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#2C4BFD] focus-within:ring-offset-2 dark:focus-within:ring-offset-gray-900"
+                >
+                  UPLOAD & CROP
+                  <input
+                    id="profile-avatar-upload"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/webp, image/gif"
+                    className="sr-only"
+                    onChange={handleUploadChange}
+                  />
+                </label>
+
+                {avatarPreviewUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
+
+            {cropImageSrc && (
+              <AvatarCropModal
+                imageSrc={cropImageSrc}
+                onCropComplete={handleCropComplete}
+                onClose={() => setCropImageSrc(null)}
+              />
+            )}
 
             <div className="mt-7">
               <label htmlFor="profile-display-name" className="text-xs font-bold tracking-wide text-gray-600 dark:text-gray-300 block">

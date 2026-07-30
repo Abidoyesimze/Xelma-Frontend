@@ -26,6 +26,15 @@ export interface FeeEstimate {
   readBytes: string;
   /** Ledger write bytes. */
   writeBytes: string;
+  /**
+   * Base64 XDR of the prepared (unsigned) transaction — the exact payload that
+   * will be handed to Freighter for approval.
+   */
+  xdr: string;
+  /** Hash of the prepared transaction, before signing. */
+  hash: string;
+  /** Network passphrase the transaction is built against. */
+  networkPassphrase: string;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -204,7 +213,7 @@ async function simulateContractCall(
   }
 
   // Prepare applies the simulation footprint & resource fee to the tx
-  await rpcServer.prepareTransaction(tx);
+  const preparedTx = await rpcServer.prepareTransaction(tx);
 
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = simulation.minResourceFee ? Number(simulation.minResourceFee) : 0;
@@ -216,6 +225,9 @@ async function simulateContractCall(
     instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
     readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
     writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    xdr: preparedTx.toXDR(),
+    hash: preparedTx.hash().toString('hex'),
+    networkPassphrase: NETWORK_PASSPHRASE,
   };
 }
 

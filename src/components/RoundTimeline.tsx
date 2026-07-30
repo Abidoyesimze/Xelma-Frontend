@@ -96,6 +96,8 @@ const RoundTimeline: React.FC = () => {
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
 
   const [stateAnnouncement, setStateAnnouncement] = useState('');
+  // Tracks the previous render's `currentState` to detect transitions without
+  // a render-time setState.
   const prevStateRef = useRef(currentState);
 
   useEffect(() => {
@@ -107,12 +109,13 @@ const RoundTimeline: React.FC = () => {
           : currentState === 'loading'
             ? 'Connecting'
             : currentState);
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         setStateAnnouncement(`Round is now ${label}`);
       }, 0);
       prevStateRef.current = currentState;
-      return () => clearTimeout(timer);
+      return () => window.clearTimeout(timer);
     }
+    return undefined;
   }, [currentState]);
 
 
@@ -188,7 +191,7 @@ const RoundTimeline: React.FC = () => {
                 {/* Circle Indicator */}
                 <div
                   className={`
-                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center 
+                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center
                     font-bold text-sm lg:text-base mb-2 transition-all duration-300
                     ${
                       isActive

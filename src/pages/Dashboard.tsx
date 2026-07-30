@@ -14,6 +14,8 @@ import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
+import EventLogDrawer from "../components/EventLogDrawer";
+import { Radio } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -152,6 +154,7 @@ const Dashboard = () => {
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -330,6 +333,16 @@ const Dashboard = () => {
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEventLogOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white"
+              >
+                <Radio className="h-4 w-4" aria-hidden />
+                On-chain events
+              </button>
+            </div>
             <RoundTimeline />
           </div>
         )}
@@ -468,6 +481,7 @@ const Dashboard = () => {
         onClose={dismissResolvedRound}
         result={endRoundResult}
       />
+      <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
     </div>
   );
 };

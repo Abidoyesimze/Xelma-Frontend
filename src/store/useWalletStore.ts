@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
+import { HORIZON_URL } from '../lib/horizon';
 
 const API_BASE = getApiBaseUrl();
 
@@ -138,7 +139,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         let formattedBalance: string | null = null;
         try {
-          const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
+          const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
           if (response.status === 404) {
             formattedBalance = '0.00 XLM';
           } else if (!response.ok) {
@@ -236,7 +237,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       let formattedBalance: string | null = null;
       try {
-        const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
+        const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
         if (response.status === 404) {
           formattedBalance = '0.00 XLM';
         } else if (!response.ok) {

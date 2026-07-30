@@ -10,12 +10,12 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       immediate: true,
-      onRegistered(registration: any) {
+      onRegistered(registration: ServiceWorkerRegistration | undefined) {
         if (registration) {
           registration.update();
         }
       },
-      onRegisterError(error: any) {
+      onRegisterError(error: unknown) {
         console.warn('Service worker registration failed:', error)
       },
     })

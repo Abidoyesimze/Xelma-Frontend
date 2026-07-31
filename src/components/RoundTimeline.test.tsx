@@ -152,6 +152,6 @@ describe('RoundTimeline', () => {
     expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
     const { container } = render(<RoundTimeline />);
     expect(container).toBeInTheDocument();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
   });
 });

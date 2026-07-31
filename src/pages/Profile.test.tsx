@@ -1,4 +1,6 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock useProfileStore
@@ -31,6 +33,10 @@ import { useProfileStore } from '../store/useProfileStore';
 
 const mockUseProfileStore = vi.mocked(useProfileStore);
 
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 function mockStoreState(overrides: {
   profile?: typeof mockProfile | null;
   isLoading?: boolean;
@@ -57,14 +63,14 @@ describe('Profile Page', () => {
   describe('rendering', () => {
     it('renders the Profile heading', () => {
       mockStoreState({});
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Profile');
     });
 
     it('renders the subtitle text', () => {
       mockStoreState({});
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(
         screen.getByText(/Manage the name, avatar, bio, and public link shown across Xelma/i),
@@ -73,7 +79,7 @@ describe('Profile Page', () => {
 
     it('renders the Edit profile button', () => {
       mockStoreState({});
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByRole('button', { name: /Edit profile/i })).toBeInTheDocument();
     });
@@ -82,14 +88,14 @@ describe('Profile Page', () => {
   describe('loading state', () => {
     it('shows loading spinner when isLoading is true and profile is null', () => {
       mockStoreState({ isLoading: true, profile: null });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
     });
 
     it('shows Edit button in header while profile is loading and null', () => {
       mockStoreState({ isLoading: true, profile: null });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       // The Edit profile button is in the page header, rendered before the
       // conditional loading block, so it still appears.
@@ -106,7 +112,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: 'TestUser', bio: 'Test bio', twitterLink: '', streamerMode: false },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText('TestUser')).toBeInTheDocument();
       expect(screen.getByText('Test bio')).toBeInTheDocument();
@@ -117,7 +123,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: '', bio: '', twitterLink: '', streamerMode: false },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText('Anonymous Player')).toBeInTheDocument();
     });
@@ -127,7 +133,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: 'TestUser', bio: '', twitterLink: '', streamerMode: true },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText('Streamer mode')).toBeInTheDocument();
     });
@@ -137,7 +143,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: '', bio: '', twitterLink: '', streamerMode: false },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText(/Your profile is ready to personalize/i)).toBeInTheDocument();
     });
@@ -150,7 +156,7 @@ describe('Profile Page', () => {
         isLoading: false,
         error: 'Failed to load profile',
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
@@ -162,7 +168,7 @@ describe('Profile Page', () => {
         isLoading: false,
         error: 'Failed to load profile',
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
       expect(mockLoadProfile).toHaveBeenCalled();
@@ -175,7 +181,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: '', bio: '', twitterLink: '', streamerMode: false },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       fireEvent.click(screen.getByRole('button', { name: /Edit profile/i }));
 
@@ -187,7 +193,7 @@ describe('Profile Page', () => {
         profile: { avatarUrl: null, name: '', bio: '', twitterLink: '', streamerMode: false },
         isLoading: false,
       });
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       fireEvent.click(screen.getByRole('button', { name: /Edit profile/i }));
       expect(screen.getByTestId('profile-settings-modal')).toBeInTheDocument();
@@ -200,7 +206,7 @@ describe('Profile Page', () => {
   describe('initialization', () => {
     it('calls loadProfile on mount', () => {
       mockStoreState({});
-      render(<Profile />);
+      renderWithRouter(<Profile />);
 
       expect(mockLoadProfile).toHaveBeenCalledTimes(1);
     });
@@ -210,7 +216,7 @@ describe('Profile Page', () => {
     it('does not make real fetch calls', () => {
       mockStoreState({});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
-      render(<Profile />);
+      renderWithRouter(<Profile />);
       // All data comes from mocked store, no real fetch should occur
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();

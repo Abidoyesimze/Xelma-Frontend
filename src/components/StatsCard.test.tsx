@@ -86,15 +86,15 @@ describe('StatsCard', () => {
 
     it('renders rank progress bar stub for contributor rebuild', () => {
       renderCard();
-      // Rank/XP section is stubbed via ContributorTaskPlaceholder
-      expect(screen.getByText('Rebuild Rank Progress Bar')).toBeInTheDocument();
-      expect(screen.getByText(/rank badge/i)).toBeInTheDocument();
+      // Rank/XP section now renders RankProgressBar component
+      expect(screen.getByText(/Analyst/i)).toBeInTheDocument();
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
     });
 
     it('renders contributor task placeholder for experience points', () => {
       renderCard();
-      // XP section is stubbed via ContributorTaskPlaceholder
-      expect(screen.getByText(/xp progress/i)).toBeInTheDocument();
+      // XP is now displayed via RankProgressBar component
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
     });
 
     it('shows the pending winnings row only when there are winnings', () => {

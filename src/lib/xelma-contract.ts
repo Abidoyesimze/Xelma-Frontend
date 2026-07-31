@@ -196,8 +196,9 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const error = rpc.Api.isSimulationError(simulation) ? simulation.error : 'Unknown simulation error';
+    throw new Error(`Simulation failed: ${error}`);
   }
 
   // Narrow to success response after the error check above.
@@ -217,8 +218,8 @@ async function simulateContractCall(
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
     instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    readBytes: '0',
+    writeBytes: '0',
     xdr: preparedTx.toXDR(),
     hash: preparedTx.hash().toString('hex'),
     networkPassphrase: NETWORK_PASSPHRASE,

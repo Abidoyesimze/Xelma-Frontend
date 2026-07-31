@@ -50,7 +50,37 @@ All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<
 - [ ] Include screenshots or a short screen recording for visible UI changes.
 - [ ] Mention any env vars, migrations, or manual QA steps reviewers need.
 
+## Socket.IO Event Map & MSW Fixtures
+
+The frontend uses strongly-typed Socket.IO event maps defined in `src/lib/socket-events.ts` and exported through `src/lib/socket.ts`.
+
+Event categories covered:
+- **Price**: Real-time asset price updates (`price:update`).
+- **Stats**: Live game statistics, predictions, and round state changes (`game:stats`, `round:started`, `round:resolved`, `prediction:created`).
+- **Chat**: Room-scoped live chat messaging (`chat:message`, `chat:send`, `join:chat`, `leave:chat`).
+- **Notifications**: System notification alerts (`notification`, `join:notifications`).
+
+### Mock Socket Fixtures for Local Demos and Tests
+
+When developing UI components or running local demos without a connected Socket.IO backend, use the MSW socket fixtures located in `src/test/msw-socket-fixtures.ts`.
+
+```ts
+import { mockSocketFixtures, createSocketMSWHandlers } from './src/test/msw-socket-fixtures';
+
+// Access categorized mock payloads:
+const mockPrice = mockSocketFixtures.price.single;
+const mockChatMsg = mockSocketFixtures.chat.message;
+const mockStats = mockSocketFixtures.stats.liveStats;
+const mockNotification = mockSocketFixtures.notifications.single;
+```
+
+To run a local demo against mock socket data using MSW:
+1. Import `createSocketMSWHandlers` in your MSW setup.
+2. Intercept WebSocket connections to `http://localhost:3000`.
+3. Emit `mockSocketFixtures` payloads to simulate backend events.
+
 ## Finding work
+
 
 Start with the repository issue tracker:
 

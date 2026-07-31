@@ -84,6 +84,19 @@ describe('StatsCard', () => {
       expect(within(row).getByText('4')).toBeInTheDocument();
     });
 
+    it('renders rank progress bar stub for contributor rebuild', () => {
+      renderCard();
+      // Rank/XP section is stubbed via ContributorTaskPlaceholder
+      expect(screen.getByText('Rebuild Rank Progress Bar')).toBeInTheDocument();
+      expect(screen.getByText(/rank badge/i)).toBeInTheDocument();
+    });
+
+    it('renders contributor task placeholder for experience points', () => {
+      renderCard();
+      // XP section is stubbed via ContributorTaskPlaceholder
+      expect(screen.getByText(/xp progress/i)).toBeInTheDocument();
+    });
+
     it('shows the pending winnings row only when there are winnings', () => {
       renderCard();
       expect(screen.queryByText('Pending Winnings')).not.toBeInTheDocument();

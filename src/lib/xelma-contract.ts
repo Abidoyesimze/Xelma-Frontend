@@ -86,6 +86,15 @@ export interface FeeEstimate {
   readBytes: string;
   /** Ledger write bytes. */
   writeBytes: string;
+  /**
+   * Base64 XDR of the prepared (unsigned) transaction — the exact payload that
+   * will be handed to Freighter for approval.
+   */
+  xdr: string;
+  /** Hash of the prepared transaction, before signing. */
+  hash: string;
+  /** Network passphrase the transaction is built against. */
+  networkPassphrase: string;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -179,30 +188,18 @@ async function executeContractCall(
     throw new Error('Failed to assemble transaction layout with simulated resources.');
   }
 
-  // 5. Sign with Freighter wallet
-  let signedResult;
+  // 5. Sign with the connected wallet
+  let signedXdrString: string;
   try {
     onStatus?.('signing');
-    signedResult = await signTransaction(preparedTx.toXDR(), {
+    signedXdrString = await freighterAdapter.signTransaction(preparedTx.toXDR(), {
       networkPassphrase: NETWORK_PASSPHRASE,
     });
   } catch (err) {
-    console.error('Freighter sign transaction error:', err);
-    throw new Error('Failed to sign transaction with Freighter wallet.');
-  }
-
-  let signedXdrString: string | null = null;
-  if (typeof signedResult === 'string') {
-    signedXdrString = signedResult;
-  } else if (signedResult && typeof signedResult === 'object') {
-    if ('error' in signedResult && signedResult.error) {
-      throw new Error(`Freighter signing rejected: ${signedResult.error}`);
-    }
-    signedXdrString = (signedResult as { signedTxXdr?: string }).signedTxXdr || null;
-  }
-
-  if (!signedXdrString) {
-    throw new Error('Signing cancelled or rejected by user.');
+    console.error('Wallet sign transaction error:', err);
+    throw new Error(
+      err instanceof Error ? err.message : 'Failed to sign transaction with your wallet.',
+    );
   }
 
   // 6. Submit the signed transaction to RPC
@@ -259,12 +256,19 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const error = rpc.Api.isSimulationError(simulation) ? simulation.error : 'Unknown simulation error';
+    throw new Error(`Simulation failed: ${error}`);
   }
 
+  // Narrow to success response after the error check above.
+  // Use ReturnType inference since SimulateTransactionSuccessResponse is
+  // not exported by name in this stellar-sdk version.
+  type SimSuccess = Exclude<Awaited<ReturnType<typeof rpcServer.simulateTransaction>>, { error: unknown }>;
+  const simResult = simulation as SimSuccess;
+
   // Prepare applies the simulation footprint & resource fee to the tx
-  await rpcServer.prepareTransaction(tx);
+  const preparedTx = await rpcServer.prepareTransaction(tx);
 
   const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
   const baseFeeStroops = Number(BASE_FEE) || 100;

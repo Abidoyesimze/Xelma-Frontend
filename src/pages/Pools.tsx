@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TRANSITION } from '../utils/motion';
+import { AssetIcon } from '../components/icons';
 
 // Typed mock data
 type PoolAsset = 'BTC' | 'ETH' | 'XLM';
@@ -42,12 +43,6 @@ const mockPoolData: PoolStats[] = [
     historicalYield: 5.1,
   },
 ];
-
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿',
-  ETH: 'Ξ',
-  XLM: '✦',
-};
 
 export default function Pools() {
   const [data, setData] = useState<PoolStats[] | null>(null);
@@ -127,8 +122,8 @@ function PoolCard({ pool }: { pool: PoolStats }) {
     <article className={`glass-card rounded-2xl p-6 ${TRANSITION}`}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]">
-            {ASSET_ICONS[pool.asset] || '?'}
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-[#BEC7FE]">
+            <AssetIcon asset={pool.asset} size={20} />
           </span>
           <h2 className="text-xl font-bold text-white">{pool.asset} Pool</h2>
         </div>

@@ -10,7 +10,7 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       immediate: true,
-      onRegistered(registration: ServiceWorkerRegistration | undefined) {
+      onRegistered(registration: ServiceWorkerRegistration) {
         if (registration) {
           registration.update();
         }

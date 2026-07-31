@@ -38,6 +38,25 @@ export default function RoundTimer({
   // Store the initial duration (in ms) once so we can compute the arc
   // percentage. Computed synchronously so the arc is correct from the
   // first paint — no flicker. Re‑computed only when `endTime` changes.
+  const resolveTimestamp = (t: string | number | Date): number => {
+    if (t instanceof Date) return t.getTime();
+    if (typeof t === 'string') return new Date(t).getTime();
+    return Number(t);
+  };
+
+  const [initialDurationMs, setInitialDurationMs] = useState(() => {
+    const diff = resolveTimestamp(endTime) - Date.now();
+    return diff > 0 ? diff : 1;
+  });
+
+  useEffect(() => {
+    const diff = resolveTimestamp(endTime) - Date.now();
+    // Resetting the initial duration when the endTime prop changes is
+    // intentional — the setState call only runs when endTime differs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInitialDurationMs(diff > 0 ? diff : 1);
+  }, [endTime]);
+
   const progress =
     initialTimeLeftMs > 0
       ? Math.min(timeLeftMs / initialTimeLeftMs, 1)

@@ -8,7 +8,6 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-
 const cardShell = cx(
   "bg-white dark:bg-gray-800 p-4 shadow-sm rounded-xl",
   "border border-gray-100 dark:border-gray-700 transition-colors"

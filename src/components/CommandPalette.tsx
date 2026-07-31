@@ -70,6 +70,12 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, open, close]);
 
+  // Reset selected index when query changes (done inline in onChange)
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setSelectedIndex(0);
+  };
+
   // Scroll selected item into view
   useEffect(() => {
     if (!isOpen) return;
@@ -135,10 +141,7 @@ export default function CommandPalette() {
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSelectedIndex(0);
-                }}
+                onChange={(e) => handleQueryChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Jump to…"
                 className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"

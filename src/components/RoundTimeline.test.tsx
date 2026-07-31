@@ -141,7 +141,8 @@ describe('RoundTimeline', () => {
   it('handles empty round data gracefully', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
 
-    expect(() => render(<RoundTimeline />)).not.toThrow();
-    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+    const { container } = render(<RoundTimeline />);
+    expect(container).toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
   });
 });

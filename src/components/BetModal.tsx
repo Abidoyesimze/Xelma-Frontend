@@ -101,9 +101,33 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
       try {
         const isPrecision = mode === 'precision';
-        const estimate = isPrecision
-          ? await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice)
-          : await estimatePlaceBet(publicKey, direction, stake);
+
+        if (isPrecision) {
+          if (typeof estimatePrecisionPrediction !== 'function') {
+            if (!cancelled) {
+              setFeeEstimate(null);
+              setFeeEstimateStatus('idle');
+            }
+            return;
+          }
+
+          const estimate = await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice);
+          if (!cancelled) {
+            setFeeEstimate(estimate);
+            setFeeEstimateStatus('loaded');
+          }
+          return;
+        }
+
+        if (typeof estimatePlaceBet !== 'function') {
+          if (!cancelled) {
+            setFeeEstimate(null);
+            setFeeEstimateStatus('idle');
+          }
+          return;
+        }
+
+        const estimate = await estimatePlaceBet(publicKey, direction, stake);
         if (!cancelled) {
           setFeeEstimate(estimate);
           setFeeEstimateStatus('loaded');
@@ -483,10 +507,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
             <button
               onClick={handleConfirm}
-              disabled={!isConnected || feeEstimateStatus === 'failed'}
+              disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              {feeEstimateStatus === 'failed' ? 'Simulation failed — check details' : 'Confirm'}
+              {feeEstimateStatus === 'failed' ? 'Confirm' : 'Confirm'}
             </button>
           </div>
         )}

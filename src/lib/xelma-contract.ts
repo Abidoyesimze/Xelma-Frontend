@@ -1,15 +1,4 @@
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { freighterAdapter } from './wallets';
 
 

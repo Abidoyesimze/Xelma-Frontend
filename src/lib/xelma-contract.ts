@@ -4,6 +4,9 @@ import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeT
 import { signTransaction } from '@stellar/freighter-api';
 
 
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { freighterAdapter } from './wallets';
 
@@ -287,6 +290,11 @@ async function simulateContractCall(
 
   const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
 
+
+
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
 
 
   return {

@@ -53,7 +53,7 @@ export default function RoundTimer({
     const diff = resolveTimestamp(endTime) - Date.now();
     return diff > 0 ? diff : 1;
 
-    
+
   });
 
   useEffect(() => {

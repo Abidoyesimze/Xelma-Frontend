@@ -12,6 +12,11 @@ import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
 
         
+import MaskedBalance from './MaskedBalance';
+
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
+
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';

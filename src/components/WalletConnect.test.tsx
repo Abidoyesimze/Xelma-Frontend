@@ -8,6 +8,19 @@ import { useAuthStore } from '../store/useAuthStore';
 vi.mock('../store/useWalletStore');
 vi.mock('../store/useAuthStore');
 
+// Report Freighter as installed so the picker offers it in jsdom.
+vi.mock('../lib/wallets', async () => {
+  const actual = await vi.importActual<typeof import('../lib/wallets')>('../lib/wallets');
+  return {
+    ...actual,
+    WALLET_ADAPTERS: actual.WALLET_ADAPTERS.map((adapter) =>
+      adapter.id === 'freighter'
+        ? { ...adapter, isAvailable: async () => ({ isAvailable: true }) }
+        : adapter,
+    ),
+  };
+});
+
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
   Loader2: ({ className, ...props }: any) => <div data-testid="loader-icon" className={className} {...props} />,
@@ -16,6 +29,8 @@ vi.mock('lucide-react', () => ({
   Wallet: ({ className, ...props }: any) => <div data-testid="wallet-icon" className={className} {...props} />,
   ShieldCheck: ({ className, ...props }: any) => <div data-testid="shield-icon" className={className} {...props} />,
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
+  // Used by the WalletPicker rendered alongside the connect button.
+  X: ({ className, ...props }: any) => <div data-testid="close-icon" className={className} {...props} />,
 }));
 
 const mockWalletStore = {
@@ -69,13 +84,29 @@ describe('WalletConnect', () => {
       expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     });
 
-    it('calls connect when connect button is clicked', () => {
+    it('opens the wallet picker when the connect button is clicked', () => {
       render(<WalletConnect />);
 
-      const connectButton = screen.getByRole('button', { name: /connect wallet/i });
-      fireEvent.click(connectButton);
+      expect(screen.queryByRole('dialog', { name: /connect a wallet/i })).not.toBeInTheDocument();
 
-      expect(mockWalletStore.connect).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+
+      // Wallet choice is now made in the picker rather than connecting immediately.
+      expect(screen.getByRole('dialog', { name: /connect a wallet/i })).toBeInTheDocument();
+      expect(mockWalletStore.connect).not.toHaveBeenCalled();
+    });
+
+    it('calls connect once Freighter is chosen in the picker', async () => {
+      mockWalletStore.connect.mockResolvedValue(undefined);
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+
+      const freighterOption = await screen.findByRole('button', { name: /freighter/i });
+      await waitFor(() => expect(freighterOption).not.toBeDisabled());
+      fireEvent.click(freighterOption);
+
+      await waitFor(() => expect(mockWalletStore.connect).toHaveBeenCalledTimes(1));
     });
 
     it('has correct styling for connect button', () => {

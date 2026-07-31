@@ -105,9 +105,10 @@ bundle.
 | --------------------------------- | -------- | ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `VITE_API_BASE_URL`               | ✅ yes   | `src/lib/config.ts`           | `http://localhost:3000`                                   | Root URL of the Xelma backend (REST + Socket.IO origin).                |
 | `VITE_API_URL`                    | ⚠️ legacy| `src/lib/config.ts` (fallback)| —                                                         | **Deprecated** — kept as a fallback for `VITE_API_BASE_URL`. New deploys should use `VITE_API_BASE_URL`. |
-| `VITE_STELLAR_NETWORK`            | optional | `src/components/Navbar.tsx`   | `TESTNET`                                                 | Human-readable network label (`TESTNET`, `PUBLIC`, or `MAINNET`). Drives the navbar badge. |
+| `VITE_STELLAR_NETWORK`            | optional | `src/components/Navbar.tsx`, `src/lib/horizon.ts` | `TESTNET`                              | Network label (`TESTNET`, `PUBLIC`, or `MAINNET`). Drives the navbar badge, the default Horizon endpoint, and the StellarExpert explorer network. |
 | `VITE_STELLAR_NETWORK_PASSPHRASE` | ✅ prod  | `src/lib/xelma-contract.ts`, `src/components/Footer.tsx` | `Test SDF Network ; September 2015` (Networks.TESTNET) | Network passphrase used to build/sign Soroban transactions. Use `Public Global Stellar Network ; September 2015` for mainnet. |
-| `VITE_STELLAR_RPC_URL`            | ✅ prod  | `src/lib/xelma-contract.ts`   | `https://soroban-testnet.stellar.org`                     | Soroban JSON-RPC endpoint used to simulate/submit/polling.              |
+| `VITE_STELLAR_RPC_URL`            | ✅ prod  | `src/lib/xelma-contract.ts`, `src/lib/prediction-events.ts` | `https://soroban-testnet.stellar.org`   | Soroban JSON-RPC endpoint used to simulate/submit/poll transactions and to read contract events. |
+| `VITE_STELLAR_HORIZON_URL`        | optional | `src/lib/horizon.ts`          | Derived from `VITE_STELLAR_NETWORK`                       | Horizon endpoint for account balances and trustlines. Defaults to `horizon-testnet.stellar.org`, or `horizon.stellar.org` on `PUBLIC`/`MAINNET`. Set only to override. |
 | `VITE_XELMA_CONTRACT_ID`          | ✅ prod  | `src/lib/xelma-contract.ts`   | Testnet placeholder contract id                           | Deployed Xelma Soroban contract id (`C…`) for the target network.       |
 
 ### `.env` examples

@@ -3,6 +3,8 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi } from '../lib/api-client';
+import XdrPreviewDrawer from './XdrPreviewDrawer';
+import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {
@@ -495,6 +497,14 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
               )}
             </div>
 
+            {feeEstimateStatus === 'loaded' && feeEstimate && (
+              <XdrPreviewDrawer
+                xdr={feeEstimate.xdr}
+                hash={feeEstimate.hash}
+                networkPassphrase={feeEstimate.networkPassphrase}
+              />
+            )}
+
             <button
               onClick={handleConfirm}
               disabled={!isConnected}
@@ -531,7 +541,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
             </p>
             <div className="space-y-3">
               <a
-                href={`https://stellarexpert.org/tx/${txHash}`}
+                href={txUrl(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"

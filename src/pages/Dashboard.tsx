@@ -28,6 +28,7 @@ import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+import FriendbotFundCard from '../components/FriendbotFundCard';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
@@ -453,6 +454,8 @@ const Dashboard = () => {
             </Link>
           </div>
         )}
+
+        {!isLoading && isWalletConnected && <FriendbotFundCard className="mb-6" />}
 
         {!isLoading && !isRoundActive && (
           <EmptyState

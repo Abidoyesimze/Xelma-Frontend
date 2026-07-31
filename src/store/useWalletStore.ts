@@ -5,6 +5,7 @@ import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
 import { HORIZON_URL } from '../lib/horizon';
+import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
 
 const API_BASE = getApiBaseUrl();
 
@@ -34,7 +35,34 @@ interface WalletState {
   disconnect: () => void;
   reset: () => void;
   checkConnection: () => Promise<void>;
+  /** Re-reads the native balance from Horizon for the connected address. */
+  refreshBalance: () => Promise<void>;
   clearError: () => void;
+}
+
+/**
+ * Reads the native XLM balance for an address from Horizon and formats it for
+ * display. An account Horizon does not know yet (404) reads as `0.00 XLM`.
+ */
+async function fetchFormattedBalance(address: string): Promise<string> {
+  const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
+  if (response.status === 404) {
+    return '0.00 XLM';
+  }
+  if (!response.ok) {
+    throw new Error(`Horizon returned ${response.status}`);
+  }
+  const data = await response.json();
+  const balances = data.balances as Array<{ asset_type: string; balance: string }>;
+  const nativeBalance = balances.find((b) => b.asset_type === 'native');
+  return nativeBalance ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM` : '0.00 XLM';
+}
+
+/** Parses a stored balance string such as `12.50 XLM` into a number. */
+export function parseXlmBalance(balance: string | null): number | null {
+  if (!balance) return null;
+  const parsed = Number.parseFloat(balance.replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** Dedupe concurrent checkConnection calls (remount / multiple headers). */
@@ -54,6 +82,17 @@ function mapConnectError(err: unknown): { message: string; code: WalletErrorCode
 
 export const selectIsWalletConnected = (s: WalletState): boolean =>
   s.status === 'connected' && Boolean(s.publicKey);
+
+/**
+ * True when a connected testnet account is too poor to pay Soroban fees, so the
+ * Friendbot CTA should be offered. Never true on mainnet, and never while the
+ * balance is unknown (Horizon unreachable) — guessing would only add noise.
+ */
+export const selectNeedsFunding = (s: WalletState): boolean => {
+  if (!FRIENDBOT_ENABLED || !selectIsWalletConnected(s)) return false;
+  const xlm = parseXlmBalance(s.balance);
+  return xlm !== null && xlm < LOW_BALANCE_THRESHOLD_XLM;
+};
 
 export const useWalletStore = create<WalletState>((set, get) => ({
   status: 'idle',
@@ -134,19 +173,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         let formattedBalance: string | null = null;
         try {
-          const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
-          if (response.status === 404) {
-            formattedBalance = '0.00 XLM';
-          } else if (!response.ok) {
-            throw new Error('Fetch failed');
-          } else {
-            const data = await response.json();
-            const balances = data.balances as Array<{ asset_type: string; balance: string }>;
-            const nativeBalance = balances.find((b) => b.asset_type === 'native');
-            formattedBalance = nativeBalance
-              ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM`
-              : '0.00 XLM';
-          }
+          formattedBalance = await fetchFormattedBalance(address);
         } catch {
           formattedBalance = null;
           toast.error('Could not load balance. You can still use the app; try reconnecting if needed.');
@@ -179,6 +206,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     })();
 
     return checkConnectionInFlight;
+  },
+
+  refreshBalance: async () => {
+    const { publicKey } = get();
+    if (!publicKey) return;
+
+    try {
+      set({ balance: await fetchFormattedBalance(publicKey) });
+    } catch {
+      toast.error('Could not refresh balance. Try again in a moment.');
+    }
   },
 
   connect: async () => {
@@ -217,19 +255,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       let formattedBalance: string | null = null;
       try {
-        const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
-        if (response.status === 404) {
-          formattedBalance = '0.00 XLM';
-        } else if (!response.ok) {
-          throw new Error('Failed to fetch account data');
-        } else {
-          const data = await response.json();
-          const balances = data.balances as Array<{ asset_type: string; balance: string }>;
-          const nativeBalance = balances.find((b) => b.asset_type === 'native');
-          formattedBalance = nativeBalance
-            ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM`
-            : '0.00 XLM';
-        }
+        formattedBalance = await fetchFormattedBalance(address);
       } catch {
         formattedBalance = null;
         toast.error('Connected, but balance could not be loaded. Try again later.');

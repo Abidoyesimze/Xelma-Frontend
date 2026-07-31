@@ -103,6 +103,7 @@ const RoundTimeline: React.FC = () => {
         : TIMELINE_STATES.find((s) => s.key === currentState)?.label || 'Unknown';
 
   const [stateAnnouncement, setStateAnnouncement] = useState('');
+  const prevStateRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {

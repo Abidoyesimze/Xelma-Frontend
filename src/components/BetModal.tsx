@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
-import { predictionsApi } from '../lib/api-client';
+import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
@@ -19,6 +19,8 @@ interface BetModalProps {
   onClose: () => void;
   predictionData: PredictionData | null;
   onSuccess?: (txHash: string) => void;
+  onPending?: (prediction: UserPrediction) => void;
+  onPredictionError?: () => void;
 }
 
 type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
@@ -57,7 +59,7 @@ function validateExactPrice(value: string): string | null {
   return null;
 }
 
-export default function BetModal({ isOpen, onClose, predictionData, onSuccess }: BetModalProps) {
+export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError }: BetModalProps) {
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
@@ -259,6 +261,19 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     // Yield to the event loop so the UI can update before awaiting the contract call
     await new Promise(resolve => setTimeout(resolve, 0));
     try {
+      if (onPending && publicKey) {
+        onPending({
+          id: `pending-${Date.now()}`,
+          direction,
+          stake,
+          exactPrice: mode === 'precision' ? exactPrice : undefined,
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          mode: mode === 'precision' ? 'precision' : 'updown',
+          asset: 'XLM',
+        } as UserPrediction);
+      }
+      
       const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
         setStep(s);
       };
@@ -303,6 +318,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       console.error('Prediction submission error:', error);
       setErrorMsg(error.message || 'An unexpected error occurred');
       setStep('error');
+      if (onPredictionError) {
+        onPredictionError();
+      }
     }
   };
 
@@ -554,11 +572,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
               disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-
               Confirm
-
-              {feeEstimateStatus === 'failed' ? 'Confirm' : 'Confirm'}
-
             </button>
           </div>
         )}

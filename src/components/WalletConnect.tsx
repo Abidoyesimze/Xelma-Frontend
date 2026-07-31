@@ -5,13 +5,8 @@ import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lu
 import clsx from 'clsx';
 
 
-import MaskedBalance from './MaskedBalance';
-
-        
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
-
-        
 import MaskedBalance from './MaskedBalance';
 
 

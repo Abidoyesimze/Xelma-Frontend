@@ -31,7 +31,7 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
-  const [endTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
@@ -40,6 +40,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
+
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

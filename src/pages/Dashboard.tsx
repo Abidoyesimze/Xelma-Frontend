@@ -29,9 +29,7 @@ import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 
-import { mockUserStats } from "../data/mockData";
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-
 import { mockUserStats, mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
@@ -159,6 +157,7 @@ const Dashboard = () => {
 
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
+  const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
@@ -524,13 +523,23 @@ const Dashboard = () => {
               </div>
               {isWalletConnected && (
                 <RecentActivity
-                  items={activities}
+                  items={
+                    optimisticPrediction
+                      ? [
+                          {
+                            ...mapPredictionToActivityItem(optimisticPrediction),
+                            result: optimisticPrediction.status === 'FAILED' ? 'Failed' : 'Pending',
+                          } as RecentActivityItem,
+                          ...activities.filter((a) => a.id !== String(optimisticPrediction.id)),
+                        ]
+                      : activities
+                  }
                   isLoading={isActivitiesLoading}
                   error={activitiesError}
                   onRetry={fetchActivities}
                 />
               )}
-              <PredictionHistory userId={publicKey} />
+              <PredictionHistory userId={publicKey} optimisticPrediction={optimisticPrediction} />
             </div>
           </div>
         )}
@@ -541,10 +550,16 @@ const Dashboard = () => {
         onClose={() => {
           setIsBetModalOpen(false);
           setPendingPrediction(null);
+          if (optimisticPrediction?.status === 'FAILED') {
+            setOptimisticPrediction(null);
+          }
         }}
         predictionData={pendingPrediction}
+        onPending={(prediction) => setOptimisticPrediction(prediction)}
+        onPredictionError={() => setOptimisticPrediction(prev => prev ? { ...prev, status: 'FAILED' } : null)}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
+          setOptimisticPrediction(null);
           void fetchStats();
           void fetchActivities();
         }}

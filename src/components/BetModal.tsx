@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { place_bet, place_precision_prediction } from '../lib/xelma-contract';
+import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi } from '../lib/api-client';
+import XdrPreviewDrawer from './XdrPreviewDrawer';
+import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {
@@ -75,6 +77,75 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
   const [formError, setFormError] = useState('');
   const [inlineStakeError, setInlineStakeError] = useState('');
 
+  // Fee estimate state
+  const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null);
+  const [feeEstimateStatus, setFeeEstimateStatus] = useState<'idle' | 'loading' | 'loaded' | 'failed'>('idle');
+  const [feeEstimateError, setFeeEstimateError] = useState<string | null>(null);
+  const estimateParamsRef = useRef('');
+
+  // Auto-fetch fee estimate when the confirm step is active.
+  // Uses a params-key guard to avoid re-fetching on every stake keystroke.
+  useEffect(() => {
+    if (step !== 'confirm' || !publicKey || !isConnected) return;
+
+    const paramsKey = `${mode}:${direction}:${stake}:${exactPrice}`;
+    if (estimateParamsRef.current === paramsKey) return;
+    estimateParamsRef.current = paramsKey;
+
+    let cancelled = false;
+
+    const run = async () => {
+      setFeeEstimateStatus('loading');
+      setFeeEstimate(null);
+      setFeeEstimateError(null);
+
+      try {
+        const isPrecision = mode === 'precision';
+
+        if (isPrecision) {
+          if (typeof estimatePrecisionPrediction !== 'function') {
+            if (!cancelled) {
+              setFeeEstimate(null);
+              setFeeEstimateStatus('idle');
+            }
+            return;
+          }
+
+          const estimate = await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice);
+          if (!cancelled) {
+            setFeeEstimate(estimate);
+            setFeeEstimateStatus('loaded');
+          }
+          return;
+        }
+
+        if (typeof estimatePlaceBet !== 'function') {
+          if (!cancelled) {
+            setFeeEstimate(null);
+            setFeeEstimateStatus('idle');
+          }
+          return;
+        }
+
+        const estimate = await estimatePlaceBet(publicKey, direction, stake);
+        if (!cancelled) {
+          setFeeEstimate(estimate);
+          setFeeEstimateStatus('loaded');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : 'Failed to estimate fee';
+          setFeeEstimateError(msg);
+          setFeeEstimateStatus('failed');
+        }
+      }
+    };
+
+    run();
+
+    return () => { cancelled = true; };
+  }, [step, publicKey, isConnected, mode, direction, stake, exactPrice]);
+
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [prevPredictionData, setPrevPredictionData] = useState(predictionData);
   if (predictionData !== prevPredictionData && isOpen) {
@@ -85,6 +156,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     setExactPrice(predictionData?.exactPrice ?? '');
     setFormError('');
     setInlineStakeError('');
+    setFeeEstimate(null);
+    setFeeEstimateStatus('idle');
+    setFeeEstimateError(null);
+    estimateParamsRef.current = '';
   }
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
@@ -100,6 +175,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       setExactPrice(predictionData?.exactPrice ?? '');
       setFormError('');
       setInlineStakeError('');
+      setFeeEstimate(null);
+      setFeeEstimateStatus('idle');
+      setFeeEstimateError(null);
+      estimateParamsRef.current = '';
     }
   }
 
@@ -341,12 +420,97 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
               {formError && <p className="text-sm font-semibold text-red-400" role="alert">{formError}</p>}
             </div>
 
+            {/* Fee & Resource Estimate */}
+            <div className="mb-5 rounded-xl border border-gray-800 bg-gray-950/70 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  ⚡ Fee Estimate
+                </span>
+                {feeEstimateStatus === 'loading' && (
+                  <div className="h-3 w-3 border-2 border-cyan-400/50 border-t-transparent rounded-full animate-spin" />
+                )}
+                {feeEstimateStatus === 'failed' && (
+                  <span className="text-xs text-red-400" title={feeEstimateError ?? ''}>Error</span>
+                )}
+              </div>
+
+              {feeEstimateStatus === 'idle' && (
+                <p className="text-xs text-gray-500">
+                  Enter prediction details to see estimated fee.
+                </p>
+              )}
+
+              {feeEstimateStatus === 'loading' && (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-3 w-full rounded bg-white/10" />
+                  <div className="h-3 w-3/4 rounded bg-white/10" />
+                  <div className="h-3 w-5/6 rounded bg-white/10" />
+                </div>
+              )}
+
+              {feeEstimateStatus === 'failed' && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                  <p className="text-xs font-semibold text-red-400">Simulation failed</p>
+                  <p className="mt-1 text-xs text-red-300/80 break-words">
+                    {feeEstimateError}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-400">
+                    Check your wallet balance and try again.
+                  </p>
+                </div>
+              )}
+
+              {feeEstimateStatus === 'loaded' && feeEstimate && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Base fee</span>
+                    <span className="font-mono text-gray-300">{feeEstimate.baseFee} XLM</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Resource fee</span>
+                    <span className="font-mono text-gray-300">{feeEstimate.resourceFee} XLM</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-800 pt-2 text-xs font-semibold">
+                    <span className="text-gray-400">Total fee</span>
+                    <span className="font-mono text-cyan-400">{feeEstimate.totalFee} XLM</span>
+                  </div>
+                  <details className="group mt-1">
+                    <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                      Resource usage
+                    </summary>
+                    <div className="mt-2 space-y-1.5 pl-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500">CPU instructions</span>
+                        <span className="font-mono text-gray-400">{Number(feeEstimate.instructions).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500">Read bytes</span>
+                        <span className="font-mono text-gray-400">{Number(feeEstimate.readBytes).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500">Write bytes</span>
+                        <span className="font-mono text-gray-400">{Number(feeEstimate.writeBytes).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
+            </div>
+
+            {feeEstimateStatus === 'loaded' && feeEstimate && (
+              <XdrPreviewDrawer
+                xdr={feeEstimate.xdr}
+                hash={feeEstimate.hash}
+                networkPassphrase={feeEstimate.networkPassphrase}
+              />
+            )}
+
             <button
               onClick={handleConfirm}
               disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              Confirm
+              {feeEstimateStatus === 'failed' ? 'Confirm' : 'Confirm'}
             </button>
           </div>
         )}
@@ -377,7 +541,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
             </p>
             <div className="space-y-3">
               <a
-                href={`https://stellarexpert.org/tx/${txHash}`}
+                href={txUrl(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"

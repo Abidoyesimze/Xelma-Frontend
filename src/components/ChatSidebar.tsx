@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useRoundStore, selectActiveChatChannelId } from "../store/useRoundStore";
+import { formatRelativeTime } from "../lib/utils";
 import EmptyState from "./EmptyState";
 import { MODAL_OVERLAY, TRANSITION, TRANSFORM_TRANSITION } from "../utils/motion";
 
@@ -32,17 +33,6 @@ function mapApiMessage(msg: ApiMessage): Message {
     content: msg.content,
     timestamp: new Date(msg.createdAt),
   };
-}
-
-function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-  return date.toLocaleDateString();
 }
 
 function getInitials(username: string): string {
@@ -340,7 +330,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
                     {message.username}
                   </span>
                   <span className="font-['DM_Sans'] font-normal text-xs text-[#9B9B9B] dark:text-gray-400">
-                    {formatTimestamp(message.timestamp)}
+                    {formatRelativeTime(message.timestamp)}
                   </span>
                 </div>
                 <p className="font-['DM_Sans'] font-normal text-sm text-[#4D4D4D] dark:text-gray-300 text-wrap wrap-break-word">

@@ -37,3 +37,8 @@ export interface RecentActivityItem {
   amount: number;
   mode: RoundMode;
 }
+
+export interface PricePoint {
+  time: number;
+  value: number;
+}

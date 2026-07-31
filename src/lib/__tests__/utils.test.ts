@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatVXLM, formatPercent, formatCompactNumber } from '../utils';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { formatVXLM, formatPercent, formatCompactNumber, formatRelativeTime } from '../utils';
 
 describe('formatVXLM', () => {
   it('formats values below 1 000 with two decimal places', () => {
@@ -80,5 +80,55 @@ describe('formatCompactNumber', () => {
   it('handles non-finite values gracefully', () => {
     expect(formatCompactNumber(NaN)).toBe('0');
     expect(formatCompactNumber(Infinity)).toBe('0');
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-07-28T12:00:00Z');
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns "just now" for dates less than 60 seconds ago', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const date = new Date(now.getTime() - 30 * 1000);
+    expect(formatRelativeTime(date)).toBe('just now');
+  });
+
+  it('returns "just now" for future dates', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const date = new Date(now.getTime() + 5000);
+    expect(formatRelativeTime(date)).toBe('just now');
+  });
+
+  it('returns "Xm ago" for dates minutes ago', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 5 * 60 * 1000))).toBe('5m ago');
+    expect(formatRelativeTime(new Date(now.getTime() - 59 * 60 * 1000))).toBe('59m ago');
+  });
+
+  it('returns "Xh ago" for dates hours ago', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 3 * 60 * 60 * 1000))).toBe('3h ago');
+    expect(formatRelativeTime(new Date(now.getTime() - 23 * 60 * 60 * 1000))).toBe('23h ago');
+  });
+
+  it('returns "Xd ago" for dates days ago', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000))).toBe('5d ago');
+    expect(formatRelativeTime(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000))).toBe('29d ago');
+  });
+
+  it('falls back to toLocaleDateString for dates older than 30 days', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const date = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe(date.toLocaleDateString());
   });
 });

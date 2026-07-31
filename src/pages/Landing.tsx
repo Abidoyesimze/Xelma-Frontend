@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import HowItWorks from '../components/HowItWorks';
 import ModeCards from '../components/ModeCards';
 import { useNetworkStats } from '../hooks/useNetworkStats';
@@ -40,6 +41,7 @@ function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
 }
 
 export default function Landing() {
+  const { t } = useTranslation();
   const { stats, isStale } = useNetworkStats();
   const rounds = useCountUp(stats.totalRounds);
   const vxlm = useCountUp(stats.vXlmDistributed);
@@ -54,31 +56,30 @@ export default function Landing() {
 
         <div className="relative mx-auto max-w-5xl text-center">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#BEC7FE]/20 bg-[#2C4BFD]/10 px-4 py-1.5 text-sm font-medium text-cyan-200">
-            Stellar prediction infrastructure
+            {t('landing.badge')}
           </p>
 
           <h1 className="hero-headline text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            Read the market.
+            {t('landing.headline1')}
             <br />
-            <span className="hero-headline-accent">Prove your call.</span>
+            <span className="hero-headline-accent">{t('landing.headline2')}</span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400 sm:text-xl">
-            Xelma is a trustless, dual-mode prediction market on Stellar — where collective
-            intelligence meets on-chain settlement. Practice with virtual XLM. No deposit required.
+            {t('landing.subtitle')}
           </p>
-
+ 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to="/dashboard" className="btn-primary rounded-xl px-8 py-4 text-base font-bold">
-              Enter Prediction Terminal
+              {t('landing.enterTerminal')}
             </Link>
             <a href="#how-it-works" className="btn-ghost rounded-xl px-8 py-4 text-base font-semibold">
-              How It Works
+              {t('landing.howItWorks')}
             </a>
           </div>
-
+ 
           <p className="mt-4 text-sm text-[#808897]">
-            New accounts start with 1,000 practice vXLM on Stellar testnet.
+            {t('landing.starterNote')}
           </p>
 
           {/* Reserved-height row so the badge never shifts the layout on load. */}
@@ -87,10 +88,10 @@ export default function Landing() {
               <span
                 className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200"
                 role="status"
-                title="Live metrics are temporarily unavailable. Showing the latest known figures."
+                title={t('landing.cachedMetricsDescription')}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Showing cached metrics
+                {t('landing.cachedMetrics')}
               </span>
             )}
           </div>
@@ -99,7 +100,7 @@ export default function Landing() {
             <div className="glass-card rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
-                Rounds Resolved
+                {t('landing.roundsResolved')}
               </p>
             </div>
             <div className="glass-card rounded-xl p-5 text-left">
@@ -107,7 +108,7 @@ export default function Landing() {
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
-                Practice Volume
+                {t('landing.practiceVolume')}
               </p>
             </div>
             <div className="glass-card rounded-xl p-5 text-left">
@@ -115,7 +116,7 @@ export default function Landing() {
                 {formatStat(players, 'players')}
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
-                Active Predictors
+                {t('landing.activePredictors')}
               </p>
             </div>
           </div>
@@ -132,7 +133,7 @@ export default function Landing() {
           <div className="text-center sm:text-left">
             <p className="text-lg font-bold text-white">Xelma</p>
             <p className="mt-1 text-sm text-[#808897]">
-              Collective market intelligence on Stellar
+              {t('footer.description')}
             </p>
           </div>
           <div className="flex items-center gap-6 text-sm text-[#808897]">

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
+import CommandPalette from './components/CommandPalette';
 import PageSkeleton from './components/PageSkeleton';
 import Landing from './pages/Landing';
 import RouteFallback from './components/RouteFallback';
@@ -10,14 +11,17 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
 import ComingSoonPage from './pages/ComingSoonPage';
+import OnboardingChecklist from './components/OnboardingChecklist';
 import { Trophy } from 'lucide-react';
 
+const NotFound = lazy(() => import('./pages/NotFound'));
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
+const Settings = lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
 
 function App() {
   const { pathname } = useLocation();
@@ -35,6 +39,7 @@ function App() {
       </a>
       <OfflineBanner />
       <Navbar />
+      <CommandPalette />
       <ErrorBoundary>
         <LazyBoundary>
           <Suspense fallback={<RouteFallback />}>
@@ -59,12 +64,15 @@ function App() {
                 }
               />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
+              <Route path="*" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><NotFound /></Suspense>} />
             </Routes>
           </Suspense>
         </LazyBoundary>
       </ErrorBoundary>
       {showGlobalFooter && <Footer />}
       <Toaster richColors position="top-center" theme="dark" />
+      <OnboardingChecklist />
     </div>
   );
 }

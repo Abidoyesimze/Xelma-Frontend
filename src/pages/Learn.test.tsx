@@ -84,10 +84,10 @@ describe('LearnPage', () => {
 
         render(<LearnPage />);
 
-        await waitFor(() => {
-            expect(screen.getByText(/No guides available/i)).toBeInTheDocument();
-            expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
-        });
+        await act(async () => {});
+
+        expect(screen.getByText(/No guides available/i)).toBeInTheDocument();
+        expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
     });
 
     it('renders error state when both requests fail', async () => {
@@ -96,9 +96,9 @@ describe('LearnPage', () => {
 
         render(<LearnPage />);
 
-        await waitFor(() => {
-            expect(screen.getByText(/Unable to load education content/i)).toBeInTheDocument();
-        });
+        await act(async () => {});
+
+        expect(screen.getByText(/Unable to load education content/i)).toBeInTheDocument();
     });
 
     it('renders partial content when only one request fails', async () => {
@@ -107,9 +107,9 @@ describe('LearnPage', () => {
 
         render(<LearnPage />);
 
-        await waitFor(() => {
-            expect(screen.getByText('How to Predict')).toBeInTheDocument();
-            expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
-        });
+        await act(async () => {});
+
+        expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
     });
 });

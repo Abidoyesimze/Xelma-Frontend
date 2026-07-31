@@ -84,7 +84,13 @@ function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) 
 }
 
 export default function OnboardingChecklist() {
+
   const [visible, setVisible] = useState(() => localStorage.getItem(ONBOARDING_KEY) !== 'true');
+
+  const [visible, setVisible] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
+
+  // No useEffect needed — state is initialised from localStorage
+
 
   const dismiss = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');

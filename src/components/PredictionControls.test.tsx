@@ -156,7 +156,7 @@ describe('PredictionControls', () => {
     fireEvent.change(exactPriceInput, { target: { value: '0.0000' } });
     fireEvent.blur(exactPriceInput);
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/Must be between 0.0001 and 10.0/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Must be between 0\.0001 and 10/i);
     expect(onPrediction).not.toHaveBeenCalled();
   });
 

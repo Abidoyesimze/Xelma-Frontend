@@ -3,6 +3,8 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi } from '../lib/api-client';
+import XdrPreviewDrawer from './XdrPreviewDrawer';
+import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {
@@ -99,9 +101,33 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
       try {
         const isPrecision = mode === 'precision';
-        const estimate = isPrecision
-          ? await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice)
-          : await estimatePlaceBet(publicKey, direction, stake);
+
+        if (isPrecision) {
+          if (typeof estimatePrecisionPrediction !== 'function') {
+            if (!cancelled) {
+              setFeeEstimate(null);
+              setFeeEstimateStatus('idle');
+            }
+            return;
+          }
+
+          const estimate = await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice);
+          if (!cancelled) {
+            setFeeEstimate(estimate);
+            setFeeEstimateStatus('loaded');
+          }
+          return;
+        }
+
+        if (typeof estimatePlaceBet !== 'function') {
+          if (!cancelled) {
+            setFeeEstimate(null);
+            setFeeEstimateStatus('idle');
+          }
+          return;
+        }
+
+        const estimate = await estimatePlaceBet(publicKey, direction, stake);
         if (!cancelled) {
           setFeeEstimate(estimate);
           setFeeEstimateStatus('loaded');
@@ -471,12 +497,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
               )}
             </div>
 
+            {feeEstimateStatus === 'loaded' && feeEstimate && (
+              <XdrPreviewDrawer
+                xdr={feeEstimate.xdr}
+                hash={feeEstimate.hash}
+                networkPassphrase={feeEstimate.networkPassphrase}
+              />
+            )}
+
             <button
               onClick={handleConfirm}
-              disabled={!isConnected || feeEstimateStatus === 'failed'}
+              disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              {feeEstimateStatus === 'failed' ? 'Simulation failed — check details' : 'Confirm'}
+              {feeEstimateStatus === 'failed' ? 'Confirm' : 'Confirm'}
             </button>
           </div>
         )}
@@ -507,7 +541,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
             </p>
             <div className="space-y-3">
               <a
-                href={`https://stellarexpert.org/tx/${txHash}`}
+                href={txUrl(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"

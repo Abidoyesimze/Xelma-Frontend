@@ -5,12 +5,18 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import { Menu, X, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
+import NetworkBadge from './NetworkBadge';
+import { useSettingsStore, selectShowNetworkBadge } from '../store/useSettingsStore';
 
 interface NavLinkItem {
   labelKey: string;
@@ -25,30 +31,11 @@ const navLinks: NavLinkItem[] = [
   { labelKey: 'navbar.nav.leaderboard', to: '/leaderboard' },
   { labelKey: 'navbar.nav.learn', to: '/learn' },
   { labelKey: 'navbar.nav.profile', to: '/profile' },
+  { labelKey: 'navbar.nav.settings', to: '/settings' },
 ];
 
 function truncateAddress(key: string): string {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
-}
-
-const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
-
-function NetworkBadge() {
-  const { t } = useTranslation();
-  const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${
-        isMainnet
-          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-          : 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-      }`}
-      aria-label={t('navbar.stellarNetwork', { network: NETWORK })}
-    >
-      {t(isMainnet ? 'navbar.networkMainnet' : 'navbar.networkTestnet')}
-    </span>
-  );
 }
 
 export default function Navbar() {
@@ -60,14 +47,32 @@ export default function Navbar() {
   const status = useWalletStore((s) => s.status);
   const connect = useWalletStore((s) => s.connect);
   const checkConnection = useWalletStore((s) => s.checkConnection);
+  const showNetworkBadge = useSettingsStore(selectShowNetworkBadge);
   const isConnecting = status === 'connecting' || status === 'checking';
   const currentLanguage = (i18n.language || 'en').split('-')[0];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
+
+  // Only Freighter is wired today; the picker disables every other adapter, so a
+  // selection always resolves to the store's Freighter connect flow.
+  const handleSelectWallet = useCallback(
+    async (id: WalletId) => {
+      setPickedWallet(id);
+      try {
+        await connect();
+        setIsPickerOpen(false);
+      } finally {
+        setPickedWallet(null);
+      }
+    },
+    [connect],
+  );
 
   const handleLanguageChange = (event: ChangeEvent<HTMLSelectElement>) => {
     void i18n.changeLanguage(event.target.value);
@@ -164,7 +169,7 @@ export default function Navbar() {
                 <Search className="w-4 h-4" />
                 <span className="text-xs">Ctrl+K</span>
               </button>
-              <NetworkBadge />
+              {showNetworkBadge && <NetworkBadge />}
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
                 <label htmlFor="language-select" className="sr-only">
                   {t('navbar.languageLabel')}
@@ -196,7 +201,7 @@ export default function Navbar() {
  
               <button
                 type="button"
-                onClick={() => void connect()}
+                onClick={() => setIsPickerOpen(true)}
                 disabled={isConnecting}
                 className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
               >
@@ -250,7 +255,7 @@ export default function Navbar() {
             </div>
 
             <div className="mb-4">
-              <NetworkBadge />
+              {showNetworkBadge && <NetworkBadge />}
             </div>
 
             <nav className="flex flex-col gap-4">
@@ -303,8 +308,8 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => {
-                  void connect();
-                  if (isConnected) closeMenu(); // optional: keep open if starting connect flow
+                  closeMenu();
+                  setIsPickerOpen(true);
                 }}
                 disabled={isConnecting}
                 className="btn-primary w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60"
@@ -315,6 +320,14 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      <WalletPicker
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleSelectWallet}
+        isConnecting={isConnecting}
+        connectingId={pickedWallet}
+      />
     </>
   );
 }

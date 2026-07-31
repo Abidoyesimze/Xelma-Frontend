@@ -21,6 +21,7 @@ const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Lea
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
+const Settings = lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
 
 function App() {
   const { pathname } = useLocation();
@@ -63,6 +64,8 @@ function App() {
                 }
               />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
+              <Route path="*" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><NotFound /></Suspense>} />
             </Routes>
           </Suspense>
         </LazyBoundary>

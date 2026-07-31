@@ -63,6 +63,7 @@ export default function RoundTimer({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialDurationMs(diff > 0 ? diff : 1);
 
+    
   }, [endTime]);
 
   const progress =

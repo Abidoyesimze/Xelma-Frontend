@@ -1,9 +1,15 @@
 
+
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
+
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { freighterAdapter } from './wallets';
+
 
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
@@ -278,6 +284,14 @@ async function simulateContractCall(
   const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
   const baseFeeStroops = Number(BASE_FEE) || 100;
 
+
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+
+  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
+
+
+
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
 
   const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
@@ -288,10 +302,12 @@ async function simulateContractCall(
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
 
+    
     instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
     readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
     writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
 
+      
     instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
     readBytes: '0',
     writeBytes: '0',
@@ -299,6 +315,7 @@ async function simulateContractCall(
     hash: preparedTx.hash().toString('hex'),
     networkPassphrase: NETWORK_PASSPHRASE,
 
+      
   };
 }
 

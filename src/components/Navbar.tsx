@@ -10,9 +10,6 @@ import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Menu, X } from 'lucide-react';
 
-import { Menu, X, Search } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';

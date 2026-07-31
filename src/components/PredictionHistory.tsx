@@ -6,6 +6,7 @@ import { formatVXLM, formatRelativeTime } from "../lib/utils";
 
 interface PredictionHistoryProps {
   userId: string | null;
+  optimisticPrediction?: UserPrediction | null;
 }
 
 function formatStake(value?: string | number): string {
@@ -15,7 +16,7 @@ function formatStake(value?: string | number): string {
   return String(value);
 }
 
-export default function PredictionHistory({ userId }: PredictionHistoryProps) {
+export default function PredictionHistory({ userId, optimisticPrediction }: PredictionHistoryProps) {
   const [history, setHistory] = useState<UserPrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +134,7 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
         <ErrorState message={error} onRetry={loadHistory} className="min-h-[200px]" />
       )}
 
-      {!isLoading && !error && history.length === 0 && (
+      {!isLoading && !error && history.length === 0 && !optimisticPrediction && (
         <EmptyState
           title="No predictions yet"
           message="Start making predictions to see your history here."
@@ -142,9 +143,9 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
         />
       )}
 
-      {!isLoading && !error && history.length > 0 && (
+      {!isLoading && !error && (history.length > 0 || optimisticPrediction) && (
         <ul className="space-y-3">
-          {history.map((prediction, index) => {
+          {(optimisticPrediction ? [optimisticPrediction, ...history.filter(h => h.id !== optimisticPrediction.id)] : history).map((prediction, index) => {
             const direction = typeof prediction.direction === "string" ? prediction.direction : "UNKNOWN";
             const exactPrice =
               prediction.exactPrice === undefined || prediction.exactPrice === null
@@ -157,11 +158,13 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
                 : String(prediction.roundId);
             const key =
               `${String(prediction.id)}-${index}`;
+            const isPending = status === 'PENDING';
+            const isFailed = status === 'FAILED';
 
             return (
               <li
                 key={key}
-                className="rounded-lg border border-gray-100 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/30"
+                className={`rounded-lg border p-3 bg-gray-50 dark:bg-gray-900/30 ${isPending ? 'border-yellow-400/50 opacity-80' : isFailed ? 'border-red-400/50 opacity-50' : 'border-gray-100 dark:border-gray-700'}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">

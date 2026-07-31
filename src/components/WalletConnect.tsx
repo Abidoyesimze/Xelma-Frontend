@@ -3,8 +3,12 @@ import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
+
+import MaskedBalance from './MaskedBalance';
+
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
+
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -65,17 +69,12 @@ const WalletConnect = () => {
         <div className="flex flex-col sm:flex-row items-stretch gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#BEC7FE] dark:border-gray-700 rounded-lg shadow-sm">
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              {balance ? (
-                <>
-                  <span className="sr-only">Balance: </span>
-                  {balance}
-                </>
-              ) : (
-                <>
-                  <span className="sr-only">Balance unavailable</span>
-                  <span aria-hidden>—</span>
-                </>
-              )}
+              {balance ? <span className="sr-only">Balance:</span> : <span className="sr-only">Balance unavailable</span>}
+              <MaskedBalance
+                value={balance || '—'}
+                className=""
+                maskedText="••••"
+              />
             </span>
           </div>
 

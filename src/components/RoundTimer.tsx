@@ -1,3 +1,7 @@
+
+import { useMemo } from 'react';
+
+
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
 
 interface RoundTimerProps {
@@ -44,9 +48,12 @@ export default function RoundTimer({
     return Number(t);
   };
 
-  const [initialDurationMs, setInitialDurationMs] = useState(() => {
+  const initialDurationMs = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- captures the new round duration baseline when endTime changes.
     const diff = resolveTimestamp(endTime) - Date.now();
     return diff > 0 ? diff : 1;
+
+
   });
 
   useEffect(() => {
@@ -55,6 +62,7 @@ export default function RoundTimer({
     // intentional — the setState call only runs when endTime differs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialDurationMs(diff > 0 ? diff : 1);
+
   }, [endTime]);
 
   const progress =

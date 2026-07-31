@@ -64,11 +64,8 @@ function App() {
                 }
               />
               <Route path="/profile" element={<Profile />} />
-
-              <Route path="*" element={<Navigate to="/" replace />} />
-
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-              <Route path="*" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><NotFound /></Suspense>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
 
             </Routes>
           </Suspense>

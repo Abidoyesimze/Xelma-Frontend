@@ -84,21 +84,7 @@ function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) 
 }
 
 export default function OnboardingChecklist() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem(ONBOARDING_KEY);
-    if (!dismissed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisible(true);
-    }
-  }, []);
-
-  const [visible, setVisible] = useState(() => localStorage.getItem(ONBOARDING_KEY) !== 'true');
-
   const [visible, setVisible] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
-
-  // No useEffect needed — state is initialised from localStorage
 
 
   const dismiss = () => {

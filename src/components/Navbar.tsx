@@ -5,20 +5,14 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type ChangeEvent } from 'react';
-import { useEffect, useState, useRef, useCallback } from 'react';
-import type { ChangeEvent } from 'react';
 
 import { useTranslation } from 'react-i18next';
 import { Menu, X } from 'lucide-react';
-
-import { Menu, X, Search } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { useTranslation } from 'react-i18next';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';

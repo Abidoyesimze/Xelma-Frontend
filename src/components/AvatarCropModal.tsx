@@ -82,8 +82,6 @@ export const AvatarCropModal: React.FC<Props> = ({ imageSrc, onCropComplete, onC
 
   useEffect(() => {
     drawPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageLoaded, scale, offsetX, offsetY]);
   }, [drawPreview]);
 
   const handleMouseDown = (e: React.MouseEvent) => {

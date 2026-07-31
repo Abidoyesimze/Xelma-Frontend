@@ -41,14 +41,6 @@ vi.mock('../lib/xelma-contract', () => ({
     instructions: '1200000',
     readBytes: '600',
     writeBytes: '300',
-  // BetModal now fetches a fee estimate before enabling confirmation.
-  estimatePlaceBet: vi.fn().mockResolvedValue({
-    baseFee: '0.0000100', resourceFee: '0.0001000', totalFee: '0.0001100',
-    instructions: '1000', readBytes: '100', writeBytes: '50',
-  }),
-  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
-    baseFee: '0.0000100', resourceFee: '0.0001000', totalFee: '0.0001100',
-    instructions: '1000', readBytes: '100', writeBytes: '50',
   }),
 }));
 

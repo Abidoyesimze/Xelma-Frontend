@@ -1,15 +1,4 @@
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
-
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { freighterAdapter } from './wallets';
 
 
@@ -283,25 +272,10 @@ async function simulateContractCall(
   // Prepare applies the simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
 
-  const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
+  const simDetails = (simResult as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } });
   const baseFeeStroops = Number(BASE_FEE) || 100;
-  const simResult: Record<string, unknown> = ('result' in simulation ? simulation.result : simulation) as unknown as Record<string, unknown>;
-  const resourceFeeStroops = simResult && 'minResourceFee' in simResult ? Number(simResult.minResourceFee) : 0;
-  const cost = simResult && 'cost' in simResult ? (simResult.cost as { cpuInsns?: string; readBytes?: string; writeBytes?: string } | undefined) : undefined;
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-
-
-  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-
-
-  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
-
-
-
-  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-
-  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
-
+  const cost = simDetails.cost;
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
@@ -310,24 +284,9 @@ async function simulateContractCall(
     instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
     readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
     writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
-    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
-    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
-    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
-
-    
-    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
-    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
-    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
-
-      
-    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: '0',
-    writeBytes: '0',
     xdr: preparedTx.toXDR(),
     hash: preparedTx.hash().toString('hex'),
     networkPassphrase: NETWORK_PASSPHRASE,
-
-      
   };
 }
 

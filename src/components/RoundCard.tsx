@@ -1,7 +1,7 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
@@ -31,7 +31,6 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
-  const [endTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);

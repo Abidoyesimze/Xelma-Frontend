@@ -28,7 +28,12 @@ import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+
+import { mockUserStats } from "../data/mockData";
+import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
+
 import { mockUserStats, mockRounds } from "../data/mockData";
+
 import type { RecentActivityItem } from "../types";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
@@ -167,6 +172,9 @@ const Dashboard = () => {
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [inspector, setInspector] = useState<SorobanInspectorSnapshot | null>(null);
+  const [isInspectorLoading, setIsInspectorLoading] = useState(false);
+  const [roundSoundEnabled, setRoundSoundEnabled] = useState(() => localStorage.getItem("xelma_round_sound") === "1");
 
   // Asset tab state from URL query param
   const [searchParams] = useSearchParams();
@@ -219,6 +227,37 @@ const Dashboard = () => {
     void fetchStats();
     void fetchActivities();
   }, [fetchStats, fetchActivities]);
+
+  const refreshInspector = useCallback(async () => {
+    if (!isWalletConnected || !publicKey) {
+      setInspector(null);
+      return;
+    }
+    setIsInspectorLoading(true);
+    try {
+      setInspector(await inspectSorobanState(publicKey));
+    } catch (err) {
+      setInspector({
+        position: null,
+        round: null,
+        source: 'mock',
+        error: err instanceof Error ? err.message : 'Unable to inspect Soroban state',
+        inspectedAt: new Date().toISOString(),
+      });
+    } finally {
+      setIsInspectorLoading(false);
+    }
+  }, [isWalletConnected, publicKey]);
+
+  useEffect(() => {
+    void refreshInspector();
+  }, [refreshInspector]);
+
+  const handleRoundSoundToggle = (enabled: boolean) => {
+    setRoundSoundEnabled(enabled);
+    localStorage.setItem('xelma_round_sound', enabled ? '1' : '0');
+  };
+
 
   useEffect(() => {
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
@@ -303,7 +342,16 @@ const Dashboard = () => {
         {isLoading && <DashboardSkeleton />}
 
         {!isLoading && (
-          <div className="mb-4 flex items-center justify-end">
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+            <label className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={roundSoundEnabled}
+                onChange={(event) => handleRoundSoundToggle(event.target.checked)}
+                className="accent-cyan-400"
+              />
+              Round sound
+            </label>
             <button
               type="button"
               onClick={() => setIsChatOpen((open) => !open)}
@@ -439,6 +487,28 @@ const Dashboard = () => {
                 walletBalance={balance}
               />
               {isWalletConnected && (
+                <section className="rounded-2xl border border-cyan-500/20 bg-black/40 p-5 font-mono text-xs text-cyan-100 shadow-inner shadow-cyan-950/30" aria-labelledby="soroban-inspector-title">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 id="soroban-inspector-title" className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-300">Soroban Inspector</h2>
+                      <p className="mt-1 text-[11px] text-cyan-100/70">Read-only wallet position and round state.</p>
+                    </div>
+                    <button type="button" onClick={() => void refreshInspector()} disabled={isInspectorLoading} className="rounded border border-cyan-400/30 px-3 py-1 text-[11px] font-semibold text-cyan-200 disabled:opacity-60">
+                      {isInspectorLoading ? 'Loading…' : 'Refresh'}
+                    </button>
+                  </div>
+                  {inspector?.error && (
+                    <p className="mb-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-amber-200" role="status">
+                      RPC fallback: {inspector.error}
+                    </p>
+                  )}
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#020617] p-3" aria-live="polite">
+                    {JSON.stringify(inspector ?? { status: isInspectorLoading ? 'loading' : 'not connected' }, null, 2)}
+                  </pre>
+                </section>
+              )}
+
+              {isWalletConnected && (
                 <StatsCard
                   stats={stats || mockUserStats}
                   isLoading={isStatsLoading}
@@ -500,6 +570,7 @@ const Dashboard = () => {
         isOpen={Boolean(resolvedRound)}
         onClose={dismissResolvedRound}
         result={endRoundResult}
+        playResolveSound={roundSoundEnabled}
       />
       <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
     </div>

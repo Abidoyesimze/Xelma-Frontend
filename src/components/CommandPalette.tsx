@@ -70,11 +70,18 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, open, close]);
 
+  // Reset selected index when filtered list changes
+  useEffect(() => {
+    const reset = window.setTimeout(() => setSelectedIndex(0), 0);
+    return () => window.clearTimeout(reset);
+  }, [query]);
+
   // Reset selected index when query changes (done inline in onChange)
   const handleQueryChange = (value: string) => {
     setQuery(value);
     setSelectedIndex(0);
   };
+
 
   // Scroll selected item into view
   useEffect(() => {

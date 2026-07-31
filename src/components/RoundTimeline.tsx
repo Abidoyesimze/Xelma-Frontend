@@ -2,13 +2,14 @@ import { Fragment, useState, useEffect, useRef } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
+
 interface TimelineState {
   label: string;
   key: 'upcoming' | 'live' | 'resolving' | 'finished';
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Pending', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
@@ -93,8 +94,14 @@ const RoundTimeline: React.FC = () => {
   const isDisconnected = currentState === 'disconnected';
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
+  const currentStateLabel = currentState === 'upcoming'
+    ? 'Upcoming'
+    : currentState === 'disconnected'
+      ? 'Unknown'
+      : currentState === 'loading'
+        ? 'Connecting'
+        : TIMELINE_STATES.find((s) => s.key === currentState)?.label || 'Unknown';
 
-  const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
   useEffect(() => {
@@ -114,6 +121,8 @@ const RoundTimeline: React.FC = () => {
     }
     return undefined;
   }, [currentState]);
+
+
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
@@ -263,8 +272,7 @@ const RoundTimeline: React.FC = () => {
               }
             `}
           >
-            {TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-              'Unknown'}
+            {currentStateLabel}
           </span>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MODAL_CONTENT, MODAL_OVERLAY } from '../utils/motion';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -46,7 +46,7 @@ export const AvatarCropModal: React.FC<Props> = ({ imageSrc, onCropComplete, onC
     };
   }, []);
 
-  const drawPreview = () => {
+  const drawPreview = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
     if (!canvas || !img || !imageLoaded) return;
@@ -78,12 +78,13 @@ export const AvatarCropModal: React.FC<Props> = ({ imageSrc, onCropComplete, onC
 
     ctx.drawImage(img, x, y, drawWidth, drawHeight);
     ctx.restore();
-  };
+  }, [imageLoaded, scale, offsetX, offsetY]);
 
   useEffect(() => {
     drawPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageLoaded, scale, offsetX, offsetY]);
+  }, [drawPreview]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);

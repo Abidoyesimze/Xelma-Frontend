@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "storybook": "ladle serve",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:unit": "vitest run",
     "test:a11y": "vitest run src/__tests__/accessibility-smoke.test.tsx",
     "test": "npm run lint && npm run build && npm run test:unit",
+    "storybook": "ladle serve",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"
@@ -38,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@ladle/react": "^5.1.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",

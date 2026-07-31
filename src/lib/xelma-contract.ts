@@ -1,5 +1,18 @@
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
+
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
+
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { freighterAdapter } from './wallets';
+
+
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID = import.meta.env.VITE_XELMA_CONTRACT_ID || 'CD7V3L7JIP52EXWLYSOWXND4F3N65QZ2R54H6M77Y3S37Z55XHLXELMA';
@@ -10,6 +23,66 @@ const rpcServer = new rpc.Server(RPC_URL);
 export interface ContractTransactionResult {
   txHash: string;
   ledger: number;
+}
+
+export interface SorobanInspectorSnapshot {
+  position: unknown;
+  round: unknown;
+  source: 'rpc' | 'mock';
+  error?: string;
+  inspectedAt: string;
+}
+
+function mockInspectorSnapshot(error?: unknown): SorobanInspectorSnapshot {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+  return {
+    position: { direction: 'UP', stake: '100 vXLM', status: 'mocked' },
+    round: { id: 'mock-round', state: 'open', closesIn: 'mock/fallback' },
+    source: 'mock',
+    error: message,
+    inspectedAt: new Date().toISOString(),
+  };
+}
+
+async function simulateReadOnly(sourceAddress: string, functionName: string, args: xdr.ScVal[]): Promise<unknown> {
+  const account = await rpcServer.getAccount(sourceAddress);
+  const contractInstance = new Contract(XELMA_CONTRACT_ID);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contractInstance.call(functionName, ...args))
+    .setTimeout(30)
+    .build();
+
+  const simulation = await rpcServer.simulateTransaction(tx);
+  if ('error' in simulation && simulation.error) {
+    throw new Error(`Read-only ${functionName} failed: ${simulation.error}`);
+  }
+
+  const simWithResults = simulation as { results?: Array<{ retval?: xdr.ScVal }> };
+  const result = simWithResults.results?.[0]?.retval;
+  return result ? scValToNative(result) : null;
+}
+
+export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
+  try {
+    const walletArg = new Address(userAddress).toScVal();
+    const [position, round] = await Promise.all([
+      simulateReadOnly(userAddress, 'get_position', [walletArg]),
+      simulateReadOnly(userAddress, 'get_round_state', []),
+    ]);
+
+    return {
+      position,
+      round,
+      source: 'rpc',
+      inspectedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.warn('Soroban inspector using mock fallback:', err);
+    return mockInspectorSnapshot(err);
+  }
 }
 
 /** Fee and resource breakdown from a Soroban simulation. */
@@ -196,17 +269,39 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const error = rpc.Api.isSimulationError(simulation) ? simulation.error : 'Unknown simulation error';
+    throw new Error(`Simulation failed: ${error}`);
   }
+
+  // Narrow to success response after the error check above.
+  // Use ReturnType inference since SimulateTransactionSuccessResponse is
+  // not exported by name in this stellar-sdk version.
+  type SimSuccess = Exclude<Awaited<ReturnType<typeof rpcServer.simulateTransaction>>, { error: unknown }>;
+  const simResult = simulation as SimSuccess;
 
   // Prepare applies the simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
 
+  const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const simResult: Record<string, unknown> = ('result' in simulation ? simulation.result : simulation) as unknown as Record<string, unknown>;
   const resourceFeeStroops = simResult && 'minResourceFee' in simResult ? Number(simResult.minResourceFee) : 0;
   const cost = simResult && 'cost' in simResult ? (simResult.cost as { cpuInsns?: string; readBytes?: string; writeBytes?: string } | undefined) : undefined;
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+
+  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
+
+
+
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
+
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
@@ -215,12 +310,24 @@ async function simulateContractCall(
     instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
     readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
     writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
+    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
+    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
+    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
+
+    
+    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
+    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
+    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
+
+      
     instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    readBytes: '0',
+    writeBytes: '0',
     xdr: preparedTx.toXDR(),
     hash: preparedTx.hash().toString('hex'),
     networkPassphrase: NETWORK_PASSPHRASE,
+
+      
   };
 }
 

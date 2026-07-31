@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Download, Wallet, Library, TrendingUp } from 'lucide-react';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
@@ -93,6 +93,13 @@ export default function OnboardingChecklist() {
       setVisible(true);
     }
   }, []);
+
+  const [visible, setVisible] = useState(() => localStorage.getItem(ONBOARDING_KEY) !== 'true');
+
+  const [visible, setVisible] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
+
+  // No useEffect needed — state is initialised from localStorage
+
 
   const dismiss = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');

@@ -1,6 +1,13 @@
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { freighterAdapter } from './wallets';
+
+
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID = import.meta.env.VITE_XELMA_CONTRACT_ID || 'CD7V3L7JIP52EXWLYSOWXND4F3N65QZ2R54H6M77Y3S37Z55XHLXELMA';
 const NETWORK_PASSPHRASE = import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
@@ -274,6 +281,11 @@ async function simulateContractCall(
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
 
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+
+  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
+
+
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
@@ -281,6 +293,18 @@ async function simulateContractCall(
     instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
     readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
     writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
+
+    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
+    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
+    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
+
+    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
+    readBytes: '0',
+    writeBytes: '0',
+    xdr: preparedTx.toXDR(),
+    hash: preparedTx.hash().toString('hex'),
+    networkPassphrase: NETWORK_PASSPHRASE,
+
   };
 }
 

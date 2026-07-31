@@ -1,14 +1,10 @@
 import { create } from 'zustand';
-import {
-  isConnected,
-  requestAccess,
-  getAddress,
-  getNetwork,
-  signMessage,
-} from '@stellar/freighter-api';
+import { isConnected, getAddress, getNetwork } from '@stellar/freighter-api';
 import { toast } from 'sonner';
+import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
+import { HORIZON_URL } from '../lib/horizon';
 
 const API_BASE = getApiBaseUrl();
 
@@ -138,7 +134,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         let formattedBalance: string | null = null;
         try {
-          const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
+          const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
           if (response.status === 404) {
             formattedBalance = '0.00 XLM';
           } else if (!response.ok) {
@@ -196,17 +192,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     });
 
     try {
-      let connected = false;
-      for (let i = 0; i < 5; i++) {
-        const { isConnected: isFreighterConnected } = await isConnected();
-        if (isFreighterConnected) {
-          connected = true;
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      if (!connected) {
+      const { isAvailable } = await freighterAdapter.isAvailable();
+      if (!isAvailable) {
         set({
           status: 'error',
           errorMessage: 'Freighter is not installed or not unlocked. Install Freighter and try again.',
@@ -220,23 +207,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         setTimeout(() => reject(new Error('TIMEOUT')), 30000);
       });
 
-      const accessResult = await Promise.race([requestAccess(), timeoutPromise]);
-      const { address, error } = accessResult;
+      const { address, network } = await Promise.race([
+        freighterAdapter.connect(),
+        timeoutPromise,
+      ]);
 
-      if (error) {
-        throw new Error(String(error));
-      }
-      if (!address) {
-        throw new Error('User denied access');
-      }
-
-      const { network } = await getNetwork();
-      const net = (network as string | null) || null;
+      const net = network;
       const networkMismatch = net !== 'TESTNET';
 
       let formattedBalance: string | null = null;
       try {
-        const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
+        const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
         if (response.status === 404) {
           formattedBalance = '0.00 XLM';
         } else if (!response.ok) {
@@ -281,15 +262,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         const { challenge } = await challengeRes.json();
 
-        const { signedMessage, error: signError } = await signMessage(challenge, {
+        const signedMessage = await freighterAdapter.signMessage(challenge, {
           address,
           networkPassphrase:
-            network === 'TESTNET'
+            net === 'TESTNET'
               ? 'Test SDF Network ; September 2015'
               : 'Public Global Stellar Network ; September 2015',
         });
-
-        if (signError) throw new Error(signError.message ?? 'Failed to sign challenge');
 
         const connectRes = await fetch(`${API_BASE}/api/auth/connect`, {
           method: 'POST',

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ProfileSettingsModal from '../components/ProfileSettingsModal';
 import IdenticonAvatar from '../components/IdenticonAvatar';
+import BalancesPanel from '../components/BalancesPanel';
 import { useProfileStore } from '../store/useProfileStore';
 import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
@@ -217,6 +218,8 @@ export default function Profile() {
               </section>
 
               <aside className="space-y-6" aria-label="Profile details">
+                <BalancesPanel />
+
                 <section className="glass-card rounded-xl p-5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2C4BFD]/15 text-[#BEC7FE]">

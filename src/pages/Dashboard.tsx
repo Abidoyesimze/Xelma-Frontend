@@ -1,13 +1,21 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
 import StatsCard from "../components/StatsCard";
 import RecentActivity from "../components/RecentActivity";
+import RoundCard from "../components/RoundCard";
+import AssetTabs from "../components/AssetTabs";
+import { ASSETS } from "../constants/assets";
+import type { Asset } from "../types/asset";
+
 import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
+import EventLogDrawer from "../components/EventLogDrawer";
+import { Radio } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -15,12 +23,12 @@ import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
 import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
-import { Link } from "react-router-dom";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
+import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
-import { mockUserStats } from "../data/mockData";
+import { mockUserStats, mockRounds } from "../data/mockData";
 import type { RecentActivityItem } from "../types";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
@@ -99,6 +107,7 @@ const DailyTip = () => {
     return (
       <div
         className="rounded-2xl glass-card accent-border-teal p-6 animate-pulse"
+        role="status"
         aria-busy="true"
         aria-label="Loading daily tip"
       >
@@ -142,10 +151,12 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
+
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -155,6 +166,17 @@ const Dashboard = () => {
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  // Asset tab state from URL query param
+  const [searchParams] = useSearchParams();
+  const selectedAsset = (searchParams.get("asset") as Asset) || "XLM";
+  const normalizedAsset = ASSETS.includes(selectedAsset) ? selectedAsset : "XLM";
+
+  // Filter mock rounds by the selected asset
+  const filteredRounds = useMemo(
+    () => mockRounds.filter((r) => r.asset === normalizedAsset),
+    [normalizedAsset],
+  );
 
   const fetchStats = useCallback(async () => {
     if (!isWalletConnected) {
@@ -250,7 +272,22 @@ const Dashboard = () => {
       ? round.note
       : defaultTip;
 
-    return { isWin, amount, tip };
+    const asset = typeof round.asset === 'string'
+      ? round.asset
+      : 'BTC';
+
+    const prediction = round.prediction as Record<string, unknown> | undefined;
+    const userPrediction = round.userPrediction as Record<string, unknown> | undefined;
+
+    const direction = typeof round.direction === 'string'
+      ? round.direction
+      : typeof prediction?.direction === 'string'
+      ? prediction.direction
+      : typeof userPrediction?.direction === 'string'
+      ? userPrediction.direction
+      : 'UP';
+
+    return { isWin, amount, tip, asset, direction };
   };
 
   const endRoundResult = getEndRoundResult(resolvedRound);
@@ -298,7 +335,60 @@ const Dashboard = () => {
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEventLogOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white"
+              >
+                <Radio className="h-4 w-4" aria-hidden />
+                On-chain events
+              </button>
+            </div>
             <RoundTimeline />
+          </div>
+        )}
+
+        {/* Asset filter tabs — always visible when content is loaded */}
+        {!isLoading && (
+          <div className="mb-6" role="tabpanel" id={`asset-panel-${normalizedAsset}`} aria-labelledby={`asset-tab-${normalizedAsset}`}>
+            <AssetTabs className="mb-6" />
+
+            {/* Rounds grid filtered by selected asset */}
+            {filteredRounds.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRounds.map((round) => (
+                  <RoundCard
+                    key={round.id}
+                    round={round}
+                    onSubmitPrediction={() => {
+                      setPendingPrediction({
+                        direction: "UP",
+                        stake: "0",
+                        isLegend: false,
+                      });
+                      setIsBetModalOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title={`No ${normalizedAsset} Rounds Available`}
+                description={`There are currently no active rounds for ${normalizedAsset === 'BTC' ? 'Bitcoin' : normalizedAsset === 'ETH' ? 'Ethereum' : 'Stellar'}. Try selecting a different asset or check back later.`}
+                action={
+                  <button
+                    type="button"
+                    className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold"
+                    onClick={() => {
+                      void useRoundStore.getState().fetchActiveRound();
+                    }}
+                  >
+                    Refresh
+                  </button>
+                }
+              />
+            )}
           </div>
         )}
 
@@ -321,6 +411,7 @@ const Dashboard = () => {
           <EmptyState
             title="No Active Rounds"
             description="Learn how the game works or refresh to check for new rounds."
+            icon={<NoRoundsIllustration className="mb-4" />}
             action={
               <button
                 type="button"
@@ -358,8 +449,8 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-                <PriceChart height={280} />
+              <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+                <PriceChart height={280} asset={normalizedAsset} />
               </div>
               {isWalletConnected && (
                 <RecentActivity
@@ -393,6 +484,7 @@ const Dashboard = () => {
         onClose={dismissResolvedRound}
         result={endRoundResult}
       />
+      <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
     </div>
   );
 };

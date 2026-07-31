@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -21,10 +23,24 @@ const WalletConnect = () => {
     clearError,
   } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
+
+  // Only Freighter is wired today; the picker disables every other adapter, so a
+  // selection always resolves to the store's Freighter connect flow.
+  const handleSelectWallet = async (id: WalletId) => {
+    setPickedWallet(id);
+    try {
+      await connect();
+      setIsPickerOpen(false);
+    } finally {
+      setPickedWallet(null);
+    }
+  };
 
   const shortAddress = publicKey
     ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
@@ -166,35 +182,45 @@ const WalletConnect = () => {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => void connect()}
-      disabled={status === 'connecting' || status === 'checking'}
-      className={clsx(
-        'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
-        'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
-        'disabled:opacity-70 disabled:cursor-not-allowed',
-        focusRing
-      )}
-      aria-busy={status === 'connecting' || status === 'checking'}
-    >
-      {status === 'connecting' ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-          <span>Connecting…</span>
-        </>
-      ) : status === 'checking' ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-          <span>Checking wallet…</span>
-        </>
-      ) : (
-        <>
-          <Wallet className="w-4 h-4" aria-hidden />
-          <span>Connect Wallet</span>
-        </>
-      )}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setIsPickerOpen(true)}
+        disabled={status === 'connecting' || status === 'checking'}
+        className={clsx(
+          'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
+          'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
+          'disabled:opacity-70 disabled:cursor-not-allowed',
+          focusRing
+        )}
+        aria-busy={status === 'connecting' || status === 'checking'}
+      >
+        {status === 'connecting' ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+            <span>Connecting…</span>
+          </>
+        ) : status === 'checking' ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+            <span>Checking wallet…</span>
+          </>
+        ) : (
+          <>
+            <Wallet className="w-4 h-4" aria-hidden />
+            <span>Connect Wallet</span>
+          </>
+        )}
+      </button>
+
+      <WalletPicker
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleSelectWallet}
+        isConnecting={status === 'connecting'}
+        connectingId={pickedWallet}
+      />
+    </>
   );
 };
 

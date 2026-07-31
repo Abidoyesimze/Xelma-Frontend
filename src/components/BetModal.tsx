@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction } from '../lib/xelma-contract';
-import { predictionsApi } from '../lib/api-client';
+import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {

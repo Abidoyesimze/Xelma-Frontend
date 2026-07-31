@@ -23,6 +23,15 @@ vi.mock('../lib/xelma-contract', () => ({
   claim_winnings: vi.fn(),
 }));
 
+vi.mock('./RankProgressBar', () => ({
+  default: ({ xp }: { xp: number }) => (
+    <div>
+      <div>Rank <span>Analyst</span></div>
+      <div>Experience <span>{xp} XP</span></div>
+    </div>
+  ),
+}));
+
 const baseStats: MockUserStats = {
   balance: 750.5,
   pendingWinnings: 0,

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
 
 interface RoundTimerProps {
@@ -34,7 +33,7 @@ export default function RoundTimer({
   playersOnline = 128,
   className = '',
 }: RoundTimerProps) {
-  const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(endTime);
+  const { formattedTime, isExpired, timeLeftMs, initialTimeLeftMs } = useRoundCountdown(endTime);
 
   // Store the initial duration (in ms) once so we can compute the arc
   // percentage. Computed synchronously so the arc is correct from the
@@ -59,8 +58,8 @@ export default function RoundTimer({
   }, [endTime]);
 
   const progress =
-    initialDurationMs > 0
-      ? Math.min(timeLeftMs / initialDurationMs, 1)
+    initialTimeLeftMs > 0
+      ? Math.min(timeLeftMs / initialTimeLeftMs, 1)
       : 1;
 
   const offset = CIRCUMFERENCE * (1 - progress);

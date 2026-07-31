@@ -93,16 +93,17 @@ describe('StatsCard', () => {
       expect(within(row).getByText('4')).toBeInTheDocument();
     });
 
-    it('renders the rank badge', () => {
+    it('renders rank progress bar stub for contributor rebuild', () => {
       renderCard();
-      const row = screen.getByText('Rank').closest('div')!;
-      expect(within(row).getByText('Analyst')).toBeInTheDocument();
+      // Rank/XP section is stubbed via ContributorTaskPlaceholder
+      expect(screen.getByText('Rebuild Rank Progress Bar')).toBeInTheDocument();
+      expect(screen.getByText(/rank badge/i)).toBeInTheDocument();
     });
 
-    it('renders the experience points', () => {
+    it('renders contributor task placeholder for experience points', () => {
       renderCard();
-      const row = screen.getByText('Experience').closest('div')!;
-      expect(within(row).getByText('1500 XP')).toBeInTheDocument();
+      // XP section is stubbed via ContributorTaskPlaceholder
+      expect(screen.getByText(/xp progress/i)).toBeInTheDocument();
     });
 
     it('shows the pending winnings row only when there are winnings', () => {

@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
@@ -103,6 +103,7 @@ const RoundTimeline: React.FC = () => {
         : TIMELINE_STATES.find((s) => s.key === currentState)?.label || 'Unknown';
 
   const [stateAnnouncement, setStateAnnouncement] = useState('');
+  const prevStateRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {

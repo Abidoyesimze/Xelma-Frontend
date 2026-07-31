@@ -263,11 +263,6 @@ async function simulateContractCall(
     throw new Error(`Simulation failed: ${error}`);
   }
 
-  // Narrow to success response after the error check above.
-  // Use ReturnType inference since SimulateTransactionSuccessResponse is
-  // not exported by name in this stellar-sdk version.
-  type SimSuccess = Exclude<Awaited<ReturnType<typeof rpcServer.simulateTransaction>>, { error: unknown }>;
-  const simResult = simulation as SimSuccess;
 
   // Prepare applies the simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
@@ -276,19 +271,6 @@ async function simulateContractCall(
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
 
-
-  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-
-
-  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
-
-
-
-  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-
-  const resourceFeeStroops = simResult.minResourceFee ? Number(simResult.minResourceFee) : 0;
-
-
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
@@ -296,21 +278,9 @@ async function simulateContractCall(
     instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
     readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
     writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
-
-    
-    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
-    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
-    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
-
-      
-    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: '0',
-    writeBytes: '0',
     xdr: preparedTx.toXDR(),
     hash: preparedTx.hash().toString('hex'),
     networkPassphrase: NETWORK_PASSPHRASE,
-
-      
   };
 }
 

@@ -6,7 +6,6 @@ import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  // @ts-expect-error virtual:pwa-register module provided by vite-plugin-pwa
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       immediate: true,

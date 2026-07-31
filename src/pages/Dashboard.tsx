@@ -29,9 +29,7 @@ import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 
-import { mockUserStats } from "../data/mockData";
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-
 import { mockUserStats, mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";

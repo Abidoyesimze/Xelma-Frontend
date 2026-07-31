@@ -182,6 +182,36 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     }
   }
 
+  const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
+  handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
+
+  const handleConfirmRef = useRef(handleConfirm);
+  handleConfirmRef.current = handleConfirm;
+
+  useEffect(() => {
+    if (!isOpen || step !== 'confirm') return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      const key = e.key;
+      if (key === 'u' || key === 'U' || key === 'ArrowUp') {
+        e.preventDefault();
+        handleDirectionRef.current('UP');
+      } else if (key === 'd' || key === 'D' || key === 'ArrowDown') {
+        e.preventDefault();
+        handleDirectionRef.current('DOWN');
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        handleConfirmRef.current();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, step]);
+
   if (!isOpen || !predictionData) return null;
 
   const handleConnectAndAuth = async () => {
@@ -307,6 +337,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
         {step === 'confirm' && (
           <div>
             <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+
+            <p className="mb-4 text-xs text-gray-500" aria-hidden="true">
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">U</kbd>
+              {' '}<kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">↑</kbd>
+              {' '}UP ·{' '}
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">D</kbd>
+              {' '}<kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">↓</kbd>
+              {' '}DOWN ·{' '}
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">Enter</kbd>
+              {' '}Confirm
+            </p>
+            <span className="sr-only" role="status">
+              Keyboard shortcuts: Press U or Arrow Up for UP, D or Arrow Down for DOWN, and Enter to confirm. Shortcuts disabled while typing in text fields.
+            </span>
 
             {/* Inline wallet-disconnect guard — shown reactively if wallet drops mid-session */}
             {!isConnected && (

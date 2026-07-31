@@ -1,3 +1,5 @@
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
 
 
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
@@ -283,6 +285,7 @@ async function simulateContractCall(
 
   const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
   const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
 
 
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
@@ -301,6 +304,9 @@ async function simulateContractCall(
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
+    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
+    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
+    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
 
     
     instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',

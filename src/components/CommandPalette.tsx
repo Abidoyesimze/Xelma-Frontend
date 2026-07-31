@@ -70,7 +70,6 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, open, close]);
 
-
   // Reset selected index when filtered list changes
   useEffect(() => {
     const reset = window.setTimeout(() => setSelectedIndex(0), 0);

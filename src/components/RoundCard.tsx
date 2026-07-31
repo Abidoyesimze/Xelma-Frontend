@@ -6,12 +6,7 @@ import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
-
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿',
-  ETH: 'Ξ',
-  XLM: '✦',
-};
+import { AssetIcon } from './icons';
 
 interface RoundCardProps {
   round: MockRound;
@@ -36,8 +31,8 @@ function poolSize(round: MockRound): number {
   return round.totalPool ?? 0;
 }
 
-export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
-  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
+
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
@@ -47,12 +42,6 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
   const prevStatus = useRef(statusMeta.label);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [round.closesInSeconds]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -81,10 +70,10 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-[#BEC7FE]"
             aria-hidden
           >
-            {ASSET_ICONS[round.asset]}
+            <AssetIcon asset={round.asset} size={20} />
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-white">{round.asset}/USD</h3>
@@ -120,8 +109,7 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
-          {/* eslint-disable-next-line react-hooks/purity */}
-          <CountdownTimer endTime={endTime} />
+          <CountdownTimer initialSeconds={round.closesInSeconds} />
         </div>
       </div>
 

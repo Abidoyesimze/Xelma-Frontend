@@ -1,5 +1,7 @@
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
-import { signTransaction } from '@stellar/freighter-api';
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { freighterAdapter } from './wallets';
+
+
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID = import.meta.env.VITE_XELMA_CONTRACT_ID || 'CD7V3L7JIP52EXWLYSOWXND4F3N65QZ2R54H6M77Y3S37Z55XHLXELMA';
@@ -10,6 +12,66 @@ const rpcServer = new rpc.Server(RPC_URL);
 export interface ContractTransactionResult {
   txHash: string;
   ledger: number;
+}
+
+export interface SorobanInspectorSnapshot {
+  position: unknown;
+  round: unknown;
+  source: 'rpc' | 'mock';
+  error?: string;
+  inspectedAt: string;
+}
+
+function mockInspectorSnapshot(error?: unknown): SorobanInspectorSnapshot {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+  return {
+    position: { direction: 'UP', stake: '100 vXLM', status: 'mocked' },
+    round: { id: 'mock-round', state: 'open', closesIn: 'mock/fallback' },
+    source: 'mock',
+    error: message,
+    inspectedAt: new Date().toISOString(),
+  };
+}
+
+async function simulateReadOnly(sourceAddress: string, functionName: string, args: xdr.ScVal[]): Promise<unknown> {
+  const account = await rpcServer.getAccount(sourceAddress);
+  const contractInstance = new Contract(XELMA_CONTRACT_ID);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contractInstance.call(functionName, ...args))
+    .setTimeout(30)
+    .build();
+
+  const simulation = await rpcServer.simulateTransaction(tx);
+  if ('error' in simulation && simulation.error) {
+    throw new Error(`Read-only ${functionName} failed: ${simulation.error}`);
+  }
+
+  const simWithResults = simulation as { results?: Array<{ retval?: xdr.ScVal }> };
+  const result = simWithResults.results?.[0]?.retval;
+  return result ? scValToNative(result) : null;
+}
+
+export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
+  try {
+    const walletArg = new Address(userAddress).toScVal();
+    const [position, round] = await Promise.all([
+      simulateReadOnly(userAddress, 'get_position', [walletArg]),
+      simulateReadOnly(userAddress, 'get_round_state', []),
+    ]);
+
+    return {
+      position,
+      round,
+      source: 'rpc',
+      inspectedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.warn('Soroban inspector using mock fallback:', err);
+    return mockInspectorSnapshot(err);
+  }
 }
 
 /** Fee and resource breakdown from a Soroban simulation. */
@@ -26,6 +88,15 @@ export interface FeeEstimate {
   readBytes: string;
   /** Ledger write bytes. */
   writeBytes: string;
+  /**
+   * Base64 XDR of the prepared (unsigned) transaction — the exact payload that
+   * will be handed to Freighter for approval.
+   */
+  xdr: string;
+  /** Hash of the prepared transaction, before signing. */
+  hash: string;
+  /** Network passphrase the transaction is built against. */
+  networkPassphrase: string;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -119,30 +190,18 @@ async function executeContractCall(
     throw new Error('Failed to assemble transaction layout with simulated resources.');
   }
 
-  // 5. Sign with Freighter wallet
-  let signedResult;
+  // 5. Sign with the connected wallet
+  let signedXdrString: string;
   try {
     onStatus?.('signing');
-    signedResult = await signTransaction(preparedTx.toXDR(), {
+    signedXdrString = await freighterAdapter.signTransaction(preparedTx.toXDR(), {
       networkPassphrase: NETWORK_PASSPHRASE,
     });
   } catch (err) {
-    console.error('Freighter sign transaction error:', err);
-    throw new Error('Failed to sign transaction with Freighter wallet.');
-  }
-
-  let signedXdrString: string | null = null;
-  if (typeof signedResult === 'string') {
-    signedXdrString = signedResult;
-  } else if (signedResult && typeof signedResult === 'object') {
-    if ('error' in signedResult && signedResult.error) {
-      throw new Error(`Freighter signing rejected: ${signedResult.error}`);
-    }
-    signedXdrString = (signedResult as { signedTxXdr?: string }).signedTxXdr || null;
-  }
-
-  if (!signedXdrString) {
-    throw new Error('Signing cancelled or rejected by user.');
+    console.error('Wallet sign transaction error:', err);
+    throw new Error(
+      err instanceof Error ? err.message : 'Failed to sign transaction with your wallet.',
+    );
   }
 
   // 6. Submit the signed transaction to RPC
@@ -199,23 +258,29 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const error = rpc.Api.isSimulationError(simulation) ? simulation.error : 'Unknown simulation error';
+    throw new Error(`Simulation failed: ${error}`);
   }
 
-  // Prepare applies the simulation footprint & resource fee to the tx
-  await rpcServer.prepareTransaction(tx);
 
+  // Prepare applies the simulation footprint & resource fee to the tx
+  const preparedTx = await rpcServer.prepareTransaction(tx);
+
+  const simDetails = simulation as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } };
   const baseFeeStroops = Number(BASE_FEE) || 100;
-  const resourceFeeStroops = simulation.minResourceFee ? Number(simulation.minResourceFee) : 0;
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
-    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    instructions: simDetails.cost?.cpuInsns ? String(simDetails.cost.cpuInsns) : '0',
+    readBytes: simDetails.cost?.readBytes ? String(simDetails.cost.readBytes) : '0',
+    writeBytes: simDetails.cost?.writeBytes ? String(simDetails.cost.writeBytes) : '0',
+    xdr: preparedTx.toXDR(),
+    hash: preparedTx.hash().toString('hex'),
+    networkPassphrase: NETWORK_PASSPHRASE,
   };
 }
 

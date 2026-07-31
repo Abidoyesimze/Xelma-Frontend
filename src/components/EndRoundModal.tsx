@@ -12,9 +12,10 @@ interface EndRoundModalProps {
     asset?: string;
     direction?: 'UP' | 'DOWN' | string;
   };
+  playResolveSound?: boolean;
 }
 
-export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {
+export default function EndRoundModal({ isOpen, onClose, result, playResolveSound = false }: EndRoundModalProps) {
   const {
     isWin = false,
     amount = 0,
@@ -170,6 +171,35 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
       setIsSharing(false);
     }
   };
+
+
+  useEffect(() => {
+    if (!isOpen || !playResolveSound || document.hidden) return;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+
+    const audioContext = new AudioContextCtor();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = isWin ? 880 : 220;
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.04, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.22);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.24);
+
+    return () => {
+      oscillator.disconnect();
+      gain.disconnect();
+      void audioContext.close();
+    };
+  }, [isOpen, isWin, playResolveSound]);
 
   useEffect(() => {
     if (isOpen) {

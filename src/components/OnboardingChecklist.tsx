@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Download, Wallet, Library, TrendingUp } from 'lucide-react';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
@@ -84,14 +84,11 @@ function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) 
 }
 
 export default function OnboardingChecklist() {
-  const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
-    const dismissed = localStorage.getItem(ONBOARDING_KEY);
-    if (!dismissed) {
-      setVisible(true);
-    }
-  }, []);
+  const [visible, setVisible] = useState(() => localStorage.getItem(ONBOARDING_KEY) !== 'true');
+
+  // No useEffect needed — state is initialised from localStorage
+
 
   const dismiss = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');

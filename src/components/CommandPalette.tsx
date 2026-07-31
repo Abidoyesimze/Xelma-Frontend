@@ -72,8 +72,16 @@ export default function CommandPalette() {
 
   // Reset selected index when filtered list changes
   useEffect(() => {
-    setSelectedIndex(0);
+    const reset = window.setTimeout(() => setSelectedIndex(0), 0);
+    return () => window.clearTimeout(reset);
   }, [query]);
+
+  // Reset selected index when query changes (done inline in onChange)
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setSelectedIndex(0);
+  };
+
 
   // Scroll selected item into view
   useEffect(() => {
@@ -140,7 +148,7 @@ export default function CommandPalette() {
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => handleQueryChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Jump to…"
                 className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"

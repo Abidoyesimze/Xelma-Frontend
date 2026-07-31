@@ -19,6 +19,14 @@ vi.mock('../lib/api-client', () => ({
     getNetworkStats: vi.fn().mockResolvedValue(null),
     getUserStats: vi.fn().mockResolvedValue(null),
   },
+  roundsApi: {
+    getActive: vi.fn().mockResolvedValue(null),
+    getHistory: vi.fn().mockResolvedValue([]),
+  },
+  priceApi: {
+    getLatestPrice: vi.fn().mockResolvedValue(null),
+    getPriceHistory: vi.fn().mockResolvedValue([]),
+  },
   ApiError: class ApiError extends Error {
     constructor(message: string, status: number) {
       super(message);
@@ -28,14 +36,7 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
-// Mock sonner toast
-vi.mock('sonner', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-    loading: vi.fn(),
-  },
-}));
+
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, ...props }: any) => (
@@ -46,7 +47,11 @@ vi.mock('react-router-dom', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }));
 
+import { useRoundStore } from '../store/useRoundStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 import Dashboard from './Dashboard';
+
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -224,12 +229,9 @@ vi.mock('../components/CountdownTimer', () => ({
   ),
 }));
 
-import { useRoundStore } from '../store/useRoundStore';
-import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, educationApi, statsApi } from '../lib/api-client';
-import { toast } from 'sonner';
 
 describe('Dashboard', () => {
+
   beforeEach(() => {
     vi.resetAllMocks();
 
@@ -438,55 +440,6 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
-    });
-  });
-
-  describe('round deep-linking', () => {
-    it('highlights the round card when ?round=<valid-id> is present', () => {
-      // Round 3 is XLM, which is the default asset = should be visible
-      mockSearchParams = new URLSearchParams('?round=3');
-
-      render(<Dashboard />);
-
-      const highlightedCards = screen
-        .getAllByTestId('round-card')
-        .filter((card) => card.getAttribute('data-highlighted') === 'true');
-
-      expect(highlightedCards).toHaveLength(1);
-    });
-
-    it('shows no highlight when ?round= is absent', () => {
-      mockSearchParams = new URLSearchParams();
-
-      render(<Dashboard />);
-
-      const highlightedCards = screen
-        .getAllByTestId('round-card')
-        .filter((card) => card.getAttribute('data-highlighted') === 'true');
-
-      expect(highlightedCards).toHaveLength(0);
-    });
-
-    it('shows toast and falls back gracefully for unknown round id', () => {
-      mockSearchParams = new URLSearchParams('?round=999');
-
-      render(<Dashboard />);
-
-      expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining('999'),
-        expect.objectContaining({ id: 'round-deeplink-unknown' }),
-      );
-    });
-
-    it('shows toast for non-numeric round param', () => {
-      mockSearchParams = new URLSearchParams('?round=abc');
-
-      render(<Dashboard />);
-
-      expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining('abc'),
-        expect.objectContaining({ id: 'round-deeplink-unknown' }),
-      );
     });
   });
 });

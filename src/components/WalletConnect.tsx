@@ -8,6 +8,8 @@ import clsx from 'clsx';
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
 import MaskedBalance from './MaskedBalance';
+import NetworkMismatchCard from './NetworkMismatchCard';
+import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
 
 
 const focusRing =
@@ -62,7 +64,7 @@ const WalletConnect = () => {
             role="status"
           >
             <AlertCircle className="w-4 h-4 mr-1 shrink-0" aria-hidden />
-            Switch to Testnet in Freighter
+            Switch to {EXPECTED_NETWORK_LABEL} in Freighter
           </div>
         )}
 
@@ -106,6 +108,8 @@ const WalletConnect = () => {
             </button>
           </div>
         </div>
+
+        <NetworkMismatchCard />
 
         {isPendingAuth && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/50 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">

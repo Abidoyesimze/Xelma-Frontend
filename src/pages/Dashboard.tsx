@@ -29,6 +29,7 @@ import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 import FriendbotFundCard from '../components/FriendbotFundCard';
+import NetworkMismatchCard from '../components/NetworkMismatchCard';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
@@ -454,6 +455,8 @@ const Dashboard = () => {
             </Link>
           </div>
         )}
+
+        {!isLoading && isWalletConnected && <NetworkMismatchCard className="mb-6" />}
 
         {!isLoading && isWalletConnected && <FriendbotFundCard className="mb-6" />}
 

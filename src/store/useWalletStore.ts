@@ -6,6 +6,11 @@ import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
 import { HORIZON_URL } from '../lib/horizon';
 import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
+import {
+  EXPECTED_NETWORK_LABEL,
+  isExpectedNetwork,
+  networkPassphraseFor,
+} from '../lib/stellarNetwork';
 
 const API_BASE = getApiBaseUrl();
 
@@ -29,7 +34,7 @@ interface WalletState {
   /** Last user-visible error (cleared on successful connect/check). */
   errorMessage: string | null;
   errorCode: WalletErrorCode | null;
-  /** True when Freighter reports a network other than TESTNET (still connected). */
+  /** True when Freighter reports a network other than the configured one (still connected). */
   networkMismatch: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -169,7 +174,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         const { network } = await getNetwork();
         const net = (network as string | null) || null;
-        const networkMismatch = net !== 'TESTNET';
+        const networkMismatch = !isExpectedNetwork(net);
 
         let formattedBalance: string | null = null;
         try {
@@ -190,7 +195,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         });
 
         if (networkMismatch) {
-          toast.error('Please switch to Stellar Testnet in Freighter for full compatibility.');
+          toast.error(`Please switch to Stellar ${EXPECTED_NETWORK_LABEL} in Freighter for full compatibility.`);
         }
       } catch {
         set({
@@ -251,7 +256,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       ]);
 
       const net = network;
-      const networkMismatch = net !== 'TESTNET';
+      const networkMismatch = !isExpectedNetwork(net);
 
       let formattedBalance: string | null = null;
       try {
@@ -274,7 +279,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       toast.success('Wallet connected!');
 
       if (networkMismatch) {
-        toast.error('Please switch to Stellar Testnet in Freighter');
+        toast.error(`Please switch to Stellar ${EXPECTED_NETWORK_LABEL} in Freighter`);
       }
 
       try {
@@ -290,10 +295,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         const signedMessage = await freighterAdapter.signMessage(challenge, {
           address,
-          networkPassphrase:
-            net === 'TESTNET'
-              ? 'Test SDF Network ; September 2015'
-              : 'Public Global Stellar Network ; September 2015',
+          networkPassphrase: networkPassphraseFor(net),
         });
 
         const connectRes = await fetch(`${API_BASE}/api/auth/connect`, {

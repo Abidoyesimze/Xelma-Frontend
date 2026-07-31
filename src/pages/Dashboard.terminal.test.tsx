@@ -41,6 +41,15 @@ vi.mock('../lib/api-client', () => ({
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: vi.fn(),
   place_precision_prediction: vi.fn(),
+  // The real modal requests an estimate before confirmation is enabled.
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100', resourceFee: '0.0001000', totalFee: '0.0001100',
+    instructions: '1000', readBytes: '100', writeBytes: '50',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100', resourceFee: '0.0001000', totalFee: '0.0001100',
+    instructions: '1000', readBytes: '100', writeBytes: '50',
+  }),
 }));
 
 describe('Dashboard Terminal & Round Flows', () => {
@@ -196,10 +205,10 @@ describe('Dashboard Terminal & Round Flows', () => {
         </div>
       );
 
-      // Verify round cards render asset headings
-      expect(screen.getByText('BTC/USD')).toBeInTheDocument();
-      expect(screen.getByText('ETH/USD')).toBeInTheDocument();
-      expect(screen.getByText('XLM/USD')).toBeInTheDocument();
+      // Verify round cards render asset headings (multiple rounds per asset)
+      expect(screen.getAllByText('BTC/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ETH/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('XLM/USD').length).toBeGreaterThanOrEqual(1);
 
       // Verify round details and pool statistics
       expect(screen.getByText(/reference \$67,420/i)).toBeInTheDocument();

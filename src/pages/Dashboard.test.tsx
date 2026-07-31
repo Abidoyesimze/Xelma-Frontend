@@ -15,6 +15,14 @@ vi.mock('../lib/api-client', () => ({
     getNetworkStats: vi.fn().mockResolvedValue(null),
     getUserStats: vi.fn().mockResolvedValue(null),
   },
+  roundsApi: {
+    getActive: vi.fn().mockResolvedValue(null),
+    getHistory: vi.fn().mockResolvedValue([]),
+  },
+  priceApi: {
+    getLatestPrice: vi.fn().mockResolvedValue(null),
+    getPriceHistory: vi.fn().mockResolvedValue([]),
+  },
   ApiError: class ApiError extends Error {
     constructor(message: string, status: number) {
       super(message);
@@ -24,15 +32,22 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
+
+
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, ...props }: any) => (
     <a href={to} {...props}>
       {children}
     </a>
   ),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
+import { useRoundStore } from '../store/useRoundStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 import Dashboard from './Dashboard';
+
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -202,11 +217,9 @@ vi.mock('../components/BetModal', () => ({
   )
 }));
 
-import { useRoundStore } from '../store/useRoundStore';
-import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
 
 describe('Dashboard', () => {
+
   beforeEach(() => {
     vi.resetAllMocks();
     

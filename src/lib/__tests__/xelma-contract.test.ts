@@ -119,7 +119,8 @@ describe('Smart Contract Bindings', () => {
   it('throws error when user rejects Freighter signature', async () => {
     vi.mocked(signTransaction).mockResolvedValue({ error: 'User rejected' } as any);
 
-    await expect(place_bet(userPublicKey, 'UP', '10')).rejects.toThrow(/Freighter signing rejected/);
+    // The wallet adapter surfaces the wallet's own rejection message.
+    await expect(place_bet(userPublicKey, 'UP', '10')).rejects.toThrow(/User rejected/);
   });
 
   it('invokes onStatus callback with preparing/signing/submitting', async () => {

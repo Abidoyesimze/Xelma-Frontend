@@ -85,7 +85,22 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
       ? round.note
       : defaultTip;
 
-    return { isWin, amount, tip };
+    const asset = typeof round.asset === 'string'
+      ? round.asset
+      : 'BTC';
+
+    const prediction = round.prediction as Record<string, unknown> | undefined;
+    const userPrediction = round.userPrediction as Record<string, unknown> | undefined;
+
+    const direction = typeof round.direction === 'string'
+      ? round.direction
+      : typeof prediction?.direction === 'string'
+      ? prediction.direction
+      : typeof userPrediction?.direction === 'string'
+      ? userPrediction.direction
+      : 'UP';
+
+    return { isWin, amount, tip, asset, direction };
   };
 
   const endRoundResult = getEndRoundResult(resolvedRound);

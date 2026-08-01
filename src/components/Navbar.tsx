@@ -14,10 +14,7 @@ import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
 
 import MaskedBalance from './MaskedBalance';
-
-import NetworkBadge from './NetworkBadge';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
-import { useSettingsStore, selectShowNetworkBadge } from '../store/useSettingsStore';
 
 
 interface NavLinkItem {

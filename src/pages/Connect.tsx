@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { toast } from 'sonner';
 import WalletConnect from '../components/WalletConnect';
 import BalancesPanel from '../components/BalancesPanel';
+import FriendbotFundCard from '../components/FriendbotFundCard';
 import { useWalletStore } from '../store/useWalletStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -127,6 +128,7 @@ const Connect = () => {
             <WalletConnect />
             {isConnected && (
               <>
+                <FriendbotFundCard className="mt-4" />
                 <BalancesPanel className="mt-4" />
                 <button
                   type="button"

@@ -3,8 +3,10 @@ import {
   createChart,
   ColorType,
   LineSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
@@ -19,7 +21,9 @@ import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
   height?: number;
-  asset?: Asset;
+asset?: Asset;
+  entryPrice?: number | null;
+  onPriceUpdate?: (price: number) => void;
 }
 
 type PriceUpdatePayload = {
@@ -100,7 +104,7 @@ const ASSET_BG: Record<string, string> = {
   XLM: "linear-gradient(135deg, #1e3a5f, #0a1929)",
 };
 
-const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
+const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: PriceChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -111,6 +115,8 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
 
   // y-coordinate of the last data point for the badge
   const [badgeY, setBadgeY] = useState<number | null>(null);
+  // y-coordinate of the entry-price marker line label
+  const [entryY, setEntryY] = useState<number | null>(null);
   // y-coordinates for each price label
   const [labelYs, setLabelYs] = useState<number[]>([]);
 
@@ -124,6 +130,15 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
   const resizeTimeoutRef = useRef<number | null>(null);
   const socketUpdateTimeoutRef = useRef<number | null>(null);
   const pendingDataRef = useRef<PricePoint[]>([]);
+
+  // Entry-price marker refs
+  const entryPriceLineRef = useRef<IPriceLine | null>(null);
+  const entryPriceRef = useRef<number | null>(null);
+  // Keep the latest onPriceUpdate callback in a ref so effects never read a stale one
+  const onPriceUpdateRef = useRef<PriceChartProps["onPriceUpdate"]>(onPriceUpdate);
+  useEffect(() => {
+    onPriceUpdateRef.current = onPriceUpdate;
+  }, [onPriceUpdate]);
 
   // Keep dataRef in sync with data
   useEffect(() => {
@@ -195,6 +210,8 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      // The chart disposes its own price lines; just drop the stale ref.
+      entryPriceLineRef.current = null;
     };
   }, [height]);
 
@@ -206,11 +223,20 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
     if (!lastPoint) {
       setBadgeY(null);
       setLabelYs([]);
+      setEntryY(null);
       return;
     }
 
     const y = seriesRef.current.priceToCoordinate(lastPoint.value);
     setBadgeY(y ?? null);
+
+    // Position the entry-price marker label, mirroring the badge logic.
+    if (entryPriceRef.current != null && Number.isFinite(entryPriceRef.current) && seriesRef.current) {
+      const entryCoord = seriesRef.current.priceToCoordinate(entryPriceRef.current);
+      setEntryY(entryCoord ?? null);
+    } else {
+      setEntryY(null);
+    }
 
     const currentPriceLabels = buildPriceLabels(currentData);
     const ys = currentPriceLabels.map((price) => seriesRef.current!.priceToCoordinate(price) ?? -9999);
@@ -241,7 +267,13 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
 
       seriesRef.current.setData(chartData);
       chartRef.current?.timeScale().fitContent();
-      
+
+      // Notify the parent of the latest live price.
+      const latest = data[data.length - 1]?.value;
+      if (Number.isFinite(latest) && onPriceUpdateRef.current) {
+        onPriceUpdateRef.current(latest as number);
+      }
+
       if (updatePositionsRef.current) {
         updatePositionsRef.current();
       }
@@ -255,6 +287,38 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
       }
     };
   }, [data]);
+
+  // Draw / redraw the entry-price marker line whenever the entryPrice prop changes.
+  useEffect(() => {
+    // Keep the ref in sync so updatePositions can read the current value.
+    entryPriceRef.current = entryPrice ?? null;
+
+    // Remove any existing line first. seriesRef.current may already be null
+    // (e.g. the chart unmounted while a marker was set), so guard the removal.
+    if (entryPriceLineRef.current) {
+      try {
+        seriesRef.current?.removePriceLine(entryPriceLineRef.current);
+      } catch {
+        // Series already disposed; nothing to remove.
+      }
+      entryPriceLineRef.current = null;
+    }
+
+    const series = seriesRef.current;
+    if (series && entryPrice != null && Number.isFinite(entryPrice)) {
+      entryPriceLineRef.current = series.createPriceLine({
+        price: entryPrice,
+        color: "#FACC15",
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: false,
+        title: "",
+      });
+    }
+
+    // Reposition the marker label immediately.
+    updatePositionsRef.current?.();
+  }, [entryPrice]);
 
   useEffect(() => {
     if (!chartRef.current || !chartContainerRef.current) return;
@@ -474,6 +538,22 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
               >
                 ${latestPrice.toFixed(6)}
               </div>
+            </div>
+          )}
+
+          {/* Entry-price marker label, aligned with the dashed price line */}
+          {entryY !== null && entryPrice != null && (
+            <div
+              className="pointer-events-none absolute z-10 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold whitespace-nowrap"
+              style={{
+                left: "8px",
+                top: entryY,
+                transform: "translateY(-50%)",
+                background: "rgba(250,204,21,0.95)",
+                color: "#0a1929",
+              }}
+            >
+              Entry ${entryPrice.toFixed(6)}
             </div>
           )}
 

@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
-import { predictionsApi } from '../lib/api-client';
+import { predictionsApi, type UserPrediction } from '../lib/api-client';
+import XdrPreviewDrawer from './XdrPreviewDrawer';
+import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 export interface PredictionData {
@@ -17,6 +19,8 @@ interface BetModalProps {
   onClose: () => void;
   predictionData: PredictionData | null;
   onSuccess?: (txHash: string) => void;
+  onPending?: (prediction: UserPrediction) => void;
+  onPredictionError?: () => void;
 }
 
 type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
@@ -55,7 +59,7 @@ function validateExactPrice(value: string): string | null {
   return null;
 }
 
-export default function BetModal({ isOpen, onClose, predictionData, onSuccess }: BetModalProps) {
+export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError }: BetModalProps) {
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
@@ -99,9 +103,33 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
 
       try {
         const isPrecision = mode === 'precision';
-        const estimate = isPrecision
-          ? await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice)
-          : await estimatePlaceBet(publicKey, direction, stake);
+
+        if (isPrecision) {
+          if (typeof estimatePrecisionPrediction !== 'function') {
+            if (!cancelled) {
+              setFeeEstimate(null);
+              setFeeEstimateStatus('idle');
+            }
+            return;
+          }
+
+          const estimate = await estimatePrecisionPrediction(publicKey, direction, stake, exactPrice);
+          if (!cancelled) {
+            setFeeEstimate(estimate);
+            setFeeEstimateStatus('loaded');
+          }
+          return;
+        }
+
+        if (typeof estimatePlaceBet !== 'function') {
+          if (!cancelled) {
+            setFeeEstimate(null);
+            setFeeEstimateStatus('idle');
+          }
+          return;
+        }
+
+        const estimate = await estimatePlaceBet(publicKey, direction, stake);
         if (!cancelled) {
           setFeeEstimate(estimate);
           setFeeEstimateStatus('loaded');
@@ -156,32 +184,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     }
   }
 
-  if (!isOpen || !predictionData) return null;
-
-  const handleConnectAndAuth = async () => {
-    setIsConnecting(true);
-    try {
-      await connect();
-      // Read post-connect state directly from the store to avoid stale closure values
-      const { status, publicKey: pk } = useWalletStore.getState();
-      const { isAuthenticated: ia } = useAuthStore.getState();
-      if (status === 'connected' && pk && ia) {
-        setStep('confirm');
-      }
-    } catch (err) {
-      console.error('Connection failed:', err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleStakeChange = (value: string) => {
-    setStake(value);
-    setFormError('');
-    const error = validateStake(value, balance);
-    setInlineStakeError(error || '');
-  };
-
   const handleConfirm = async () => {
     const stakeError = validateStake(stake, balance);
     const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
@@ -203,6 +205,19 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     // Yield to the event loop so the UI can update before awaiting the contract call
     await new Promise(resolve => setTimeout(resolve, 0));
     try {
+      if (onPending && publicKey) {
+        onPending({
+          id: `pending-${Date.now()}`,
+          direction,
+          stake,
+          exactPrice: mode === 'precision' ? exactPrice : undefined,
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          mode: mode === 'precision' ? 'precision' : 'updown',
+          asset: 'XLM',
+        } as UserPrediction);
+      }
+
       const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
         setStep(s);
       };
@@ -247,7 +262,66 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       console.error('Prediction submission error:', error);
       setErrorMsg(error.message || 'An unexpected error occurred');
       setStep('error');
+      if (onPredictionError) {
+        onPredictionError();
+      }
     }
+  };
+
+  const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
+  handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
+
+  const handleConfirmRef = useRef<() => void>(() => {});
+  handleConfirmRef.current = handleConfirm;
+
+  useEffect(() => {
+    if (!isOpen || step !== 'confirm') return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+      const key = e.key;
+      if (key === 'u' || key === 'U' || key === 'ArrowUp') {
+        e.preventDefault();
+        handleDirectionRef.current('UP');
+      } else if (key === 'd' || key === 'D' || key === 'ArrowDown') {
+        e.preventDefault();
+        handleDirectionRef.current('DOWN');
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        handleConfirmRef.current();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, step]);
+
+  if (!isOpen || !predictionData) return null;
+
+  const handleConnectAndAuth = async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+      // Read post-connect state directly from the store to avoid stale closure values
+      const { status, publicKey: pk } = useWalletStore.getState();
+      const { isAuthenticated: ia } = useAuthStore.getState();
+      if (status === 'connected' && pk && ia) {
+        setStep('confirm');
+      }
+    } catch (err) {
+      console.error('Connection failed:', err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleStakeChange = (value: string) => {
+    setStake(value);
+    setFormError('');
+    const error = validateStake(value, balance);
+    setInlineStakeError(error || '');
   };
 
   return (
@@ -281,6 +355,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
         {step === 'confirm' && (
           <div>
             <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+
+            <p className="mb-4 text-xs text-gray-500" aria-hidden="true">
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">U</kbd>
+              {' '}<kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">↑</kbd>
+              {' '}UP ·{' '}
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">D</kbd>
+              {' '}<kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">↓</kbd>
+              {' '}DOWN ·{' '}
+              <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">Enter</kbd>
+              {' '}Confirm
+            </p>
+            <span className="sr-only" role="status">
+              Keyboard shortcuts: Press U or Arrow Up for UP, D or Arrow Down for DOWN, and Enter to confirm. Shortcuts disabled while typing in text fields.
+            </span>
 
             {/* Inline wallet-disconnect guard — shown reactively if wallet drops mid-session */}
             {!isConnected && (
@@ -471,12 +559,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
               )}
             </div>
 
+            {feeEstimateStatus === 'loaded' && feeEstimate && (
+              <XdrPreviewDrawer
+                xdr={feeEstimate.xdr}
+                hash={feeEstimate.hash}
+                networkPassphrase={feeEstimate.networkPassphrase}
+              />
+            )}
+
             <button
               onClick={handleConfirm}
-              disabled={!isConnected || feeEstimateStatus === 'failed'}
+              disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              {feeEstimateStatus === 'failed' ? 'Simulation failed — check details' : 'Confirm'}
+              Confirm
             </button>
           </div>
         )}
@@ -507,7 +603,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
             </p>
             <div className="space-y-3">
               <a
-                href={`https://stellarexpert.org/tx/${txHash}`}
+                href={txUrl(txHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"

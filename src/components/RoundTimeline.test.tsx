@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 
 const mockRoundStore: Record<string, unknown> = {
   activeRound: null,
@@ -39,6 +39,7 @@ describe('RoundTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
@@ -142,7 +143,9 @@ describe('RoundTimeline', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
 
     const renderComponent = () => render(<RoundTimeline />);
-    expect(renderComponent).not.toThrow();
-    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+    const rendered = renderComponent();
+
+    expect(() => rendered).not.toThrow();
+    expect(getCurrentStateLabel()?.textContent).toMatch(/Upcoming/i);
   });
 });

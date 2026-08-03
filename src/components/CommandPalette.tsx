@@ -36,6 +36,7 @@ export default function CommandPalette() {
   const filtered = routes.filter((r) =>
     r.label.toLowerCase().includes(query.toLowerCase()),
   );
+  const safeSelectedIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -87,14 +88,18 @@ export default function CommandPalette() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((i) => (i + 1) % filtered.length);
+      if (filtered.length > 0) {
+        setSelectedIndex((i) => (i + 1) % filtered.length);
+      }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+      if (filtered.length > 0) {
+        setSelectedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[selectedIndex]) {
-        navigate(filtered[selectedIndex].to);
+      if (filtered[safeSelectedIndex]) {
+        navigate(filtered[safeSelectedIndex].to);
         close();
       }
     }
@@ -146,7 +151,7 @@ export default function CommandPalette() {
                 aria-expanded={isOpen}
                 aria-controls="command-palette-listbox"
                 aria-activedescendant={
-                  filtered[selectedIndex] ? `command-palette-option-${selectedIndex}` : undefined
+                  filtered[safeSelectedIndex] ? `command-palette-option-${safeSelectedIndex}` : undefined
                 }
               />
               <kbd className="hidden sm:inline-block rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
@@ -169,7 +174,7 @@ export default function CommandPalette() {
               )}
               {filtered.map((route, index) => {
                 const Icon = route.icon;
-                const isSelected = index === selectedIndex;
+                const isSelected = index === safeSelectedIndex;
                 const isCurrent = location.pathname === route.to;
                 return (
                   <button

@@ -78,7 +78,7 @@ export const AvatarCropModal: React.FC<Props> = ({ imageSrc, onCropComplete, onC
 
     ctx.drawImage(img, x, y, drawWidth, drawHeight);
     ctx.restore();
-  }, [imageLoaded, scale, offsetX, offsetY]);
+  }, [imageLoaded, offsetX, offsetY, scale]);
 
   useEffect(() => {
     drawPreview();

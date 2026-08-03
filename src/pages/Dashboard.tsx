@@ -14,6 +14,8 @@ import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
+import EventLogDrawer from "../components/EventLogDrawer";
+import { Radio } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -24,9 +26,17 @@ import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
+import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+import FriendbotFundCard from '../components/FriendbotFundCard';
+import NetworkMismatchCard from '../components/NetworkMismatchCard';
+
+import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
+
 import type { RecentActivityItem } from "../types";
+import { toast } from "sonner";
+import { Share2 } from "lucide-react";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
   const isWin = typeof pred.isWin === "boolean"
@@ -148,10 +158,13 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
+
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
+  const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -161,11 +174,35 @@ const Dashboard = () => {
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [inspector, setInspector] = useState<SorobanInspectorSnapshot | null>(null);
+  const [isInspectorLoading, setIsInspectorLoading] = useState(false);
+  const [roundSoundEnabled, setRoundSoundEnabled] = useState(() => localStorage.getItem("xelma_round_sound") === "1");
 
   // Asset tab state from URL query param
   const [searchParams] = useSearchParams();
   const selectedAsset = (searchParams.get("asset") as Asset) || "XLM";
   const normalizedAsset = ASSETS.includes(selectedAsset) ? selectedAsset : "XLM";
+
+  // Round deep-link: read ?round=<id>, find matching mock round, highlight it
+  const deepLinkedRoundId = useMemo(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return null;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id < 1) return null;
+    return id;
+  }, [searchParams]);
+
+  // Show toast for unknown round ids (non-numeric or out of range)
+  useEffect(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return;
+    const id = Number(raw);
+    if (Number.isFinite(id) && id >= 1 && mockRounds.some((r) => r.id === id)) return;
+    // Raw string exists but doesn't match any round
+    toast.error(`Round "${raw}" not found — showing all rounds`, {
+      id: "round-deeplink-unknown",
+    });
+  }, [searchParams]);
 
   // Filter mock rounds by the selected asset
   const filteredRounds = useMemo(
@@ -213,6 +250,37 @@ const Dashboard = () => {
     void fetchStats();
     void fetchActivities();
   }, [fetchStats, fetchActivities]);
+
+  const refreshInspector = useCallback(async () => {
+    if (!isWalletConnected || !publicKey) {
+      setInspector(null);
+      return;
+    }
+    setIsInspectorLoading(true);
+    try {
+      setInspector(await inspectSorobanState(publicKey));
+    } catch (err) {
+      setInspector({
+        position: null,
+        round: null,
+        source: 'mock',
+        error: err instanceof Error ? err.message : 'Unable to inspect Soroban state',
+        inspectedAt: new Date().toISOString(),
+      });
+    } finally {
+      setIsInspectorLoading(false);
+    }
+  }, [isWalletConnected, publicKey]);
+
+  useEffect(() => {
+    void refreshInspector();
+  }, [refreshInspector]);
+
+  const handleRoundSoundToggle = (enabled: boolean) => {
+    setRoundSoundEnabled(enabled);
+    localStorage.setItem('xelma_round_sound', enabled ? '1' : '0');
+  };
+
 
   useEffect(() => {
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
@@ -297,7 +365,16 @@ const Dashboard = () => {
         {isLoading && <DashboardSkeleton />}
 
         {!isLoading && (
-          <div className="mb-4 flex items-center justify-end">
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+            <label className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={roundSoundEnabled}
+                onChange={(event) => handleRoundSoundToggle(event.target.checked)}
+                className="accent-cyan-400"
+              />
+              Round sound
+            </label>
             <button
               type="button"
               onClick={() => setIsChatOpen((open) => !open)}
@@ -330,6 +407,16 @@ const Dashboard = () => {
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsEventLogOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white"
+              >
+                <Radio className="h-4 w-4" aria-hidden />
+                On-chain events
+              </button>
+            </div>
             <RoundTimeline />
           </div>
         )}
@@ -341,11 +428,38 @@ const Dashboard = () => {
 
             {/* Rounds grid filtered by selected asset */}
             {filteredRounds.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <>
+                {/* Share button for deep-linking */}
+                <div className="mb-4 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = new URL(window.location.href);
+                      try {
+                        await navigator.clipboard.writeText(url.toString());
+                        toast.success("Link copied to clipboard", {
+                          id: "share-round-url",
+                        });
+                      } catch {
+                        toast.error("Could not copy link", {
+                          id: "share-round-url",
+                        });
+                      }
+                    }}
+                    data-testid="share-rounds-btn"
+                    className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
+                    aria-label="Copy share link"
+                  >
+                    <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Share
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredRounds.map((round) => (
                   <RoundCard
                     key={round.id}
                     round={round}
+                    isHighlighted={deepLinkedRoundId === round.id}
                     onSubmitPrediction={() => {
                       setPendingPrediction({
                         direction: "UP",
@@ -357,6 +471,7 @@ const Dashboard = () => {
                   />
                 ))}
               </div>
+              </>
             ) : (
               <EmptyState
                 title={`No ${normalizedAsset} Rounds Available`}
@@ -392,10 +507,15 @@ const Dashboard = () => {
           </div>
         )}
 
+        {!isLoading && isWalletConnected && <NetworkMismatchCard className="mb-6" />}
+
+        {!isLoading && isWalletConnected && <FriendbotFundCard className="mb-6" />}
+
         {!isLoading && !isRoundActive && (
           <EmptyState
             title="No Active Rounds"
             description="Learn how the game works or refresh to check for new rounds."
+            icon={<NoRoundsIllustration className="mb-4" />}
             action={
               <button
                 type="button"
@@ -422,6 +542,28 @@ const Dashboard = () => {
                 walletBalance={balance}
               />
               {isWalletConnected && (
+                <section className="rounded-2xl border border-cyan-500/20 bg-black/40 p-5 font-mono text-xs text-cyan-100 shadow-inner shadow-cyan-950/30" aria-labelledby="soroban-inspector-title">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 id="soroban-inspector-title" className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-300">Soroban Inspector</h2>
+                      <p className="mt-1 text-[11px] text-cyan-100/70">Read-only wallet position and round state.</p>
+                    </div>
+                    <button type="button" onClick={() => void refreshInspector()} disabled={isInspectorLoading} className="rounded border border-cyan-400/30 px-3 py-1 text-[11px] font-semibold text-cyan-200 disabled:opacity-60">
+                      {isInspectorLoading ? 'Loading…' : 'Refresh'}
+                    </button>
+                  </div>
+                  {inspector?.error && (
+                    <p className="mb-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-amber-200" role="status">
+                      RPC fallback: {inspector.error}
+                    </p>
+                  )}
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#020617] p-3" aria-live="polite">
+                    {JSON.stringify(inspector ?? { status: isInspectorLoading ? 'loading' : 'not connected' }, null, 2)}
+                  </pre>
+                </section>
+              )}
+
+              {isWalletConnected && (
                 <StatsCard
                   stats={stats || mockUserStats}
                   isLoading={isStatsLoading}
@@ -438,13 +580,23 @@ const Dashboard = () => {
               </div>
               {isWalletConnected && (
                 <RecentActivity
-                  items={activities}
+                  items={
+                    optimisticPrediction
+                      ? [
+                          {
+                            ...mapPredictionToActivityItem(optimisticPrediction),
+                            result: optimisticPrediction.status === 'FAILED' ? 'Failed' : 'Pending',
+                          } as RecentActivityItem,
+                          ...activities.filter((a) => a.id !== String(optimisticPrediction.id)),
+                        ]
+                      : activities
+                  }
                   isLoading={isActivitiesLoading}
                   error={activitiesError}
                   onRetry={fetchActivities}
                 />
               )}
-              <PredictionHistory userId={publicKey} />
+              <PredictionHistory userId={publicKey} optimisticPrediction={optimisticPrediction} />
             </div>
           </div>
         )}
@@ -455,10 +607,16 @@ const Dashboard = () => {
         onClose={() => {
           setIsBetModalOpen(false);
           setPendingPrediction(null);
+          if (optimisticPrediction?.status === 'FAILED') {
+            setOptimisticPrediction(null);
+          }
         }}
         predictionData={pendingPrediction}
+        onPending={(prediction) => setOptimisticPrediction(prediction)}
+        onPredictionError={() => setOptimisticPrediction(prev => prev ? { ...prev, status: 'FAILED' } : null)}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
+          setOptimisticPrediction(null);
           void fetchStats();
           void fetchActivities();
         }}
@@ -467,7 +625,9 @@ const Dashboard = () => {
         isOpen={Boolean(resolvedRound)}
         onClose={dismissResolvedRound}
         result={endRoundResult}
+        playResolveSound={roundSoundEnabled}
       />
+      <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
     </div>
   );
 };

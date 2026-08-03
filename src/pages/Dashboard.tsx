@@ -28,11 +28,16 @@ import type { Tip } from "../types/education";
 import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
+import FriendbotFundCard from '../components/FriendbotFundCard';
+import NetworkMismatchCard from '../components/NetworkMismatchCard';
 
+import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 
 import type { RecentActivityItem } from "../types";
+import { toast } from "sonner";
+import { Share2 } from "lucide-react";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
   const isWin = typeof pred.isWin === "boolean"
@@ -154,13 +159,28 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
-
+const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
+  const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+
+  // Latest live price from the chart, held in a ref to avoid re-renders on every tick.
+  const currentPriceRef = useRef<number | null>(null);
+  // Price that was live when the user's prediction succeeded; marks the chart.
+  const [entryPrice, setEntryPrice] = useState<number | null>(null);
+
+  const handlePriceUpdate = useCallback((price: number) => {
+    currentPriceRef.current = price;
+  }, []);
+
+  // Clear the entry marker whenever the active round changes.
+  useEffect(() => {
+    setEntryPrice(null);
+  }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -177,6 +197,27 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const selectedAsset = (searchParams.get("asset") as Asset) || "XLM";
   const normalizedAsset = ASSETS.includes(selectedAsset) ? selectedAsset : "XLM";
+
+  // Round deep-link: read ?round=<id>, find matching mock round, highlight it
+  const deepLinkedRoundId = useMemo(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return null;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id < 1) return null;
+    return id;
+  }, [searchParams]);
+
+  // Show toast for unknown round ids (non-numeric or out of range)
+  useEffect(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return;
+    const id = Number(raw);
+    if (Number.isFinite(id) && id >= 1 && mockRounds.some((r) => r.id === id)) return;
+    // Raw string exists but doesn't match any round
+    toast.error(`Round "${raw}" not found — showing all rounds`, {
+      id: "round-deeplink-unknown",
+    });
+  }, [searchParams]);
 
   // Filter mock rounds by the selected asset
   const filteredRounds = useMemo(
@@ -402,11 +443,38 @@ const Dashboard = () => {
 
             {/* Rounds grid filtered by selected asset */}
             {filteredRounds.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <>
+                {/* Share button for deep-linking */}
+                <div className="mb-4 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = new URL(window.location.href);
+                      try {
+                        await navigator.clipboard.writeText(url.toString());
+                        toast.success("Link copied to clipboard", {
+                          id: "share-round-url",
+                        });
+                      } catch {
+                        toast.error("Could not copy link", {
+                          id: "share-round-url",
+                        });
+                      }
+                    }}
+                    data-testid="share-rounds-btn"
+                    className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
+                    aria-label="Copy share link"
+                  >
+                    <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Share
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredRounds.map((round) => (
                   <RoundCard
                     key={round.id}
                     round={round}
+                    isHighlighted={deepLinkedRoundId === round.id}
                     onSubmitPrediction={() => {
                       setPendingPrediction({
                         direction: "UP",
@@ -418,6 +486,7 @@ const Dashboard = () => {
                   />
                 ))}
               </div>
+              </>
             ) : (
               <EmptyState
                 title={`No ${normalizedAsset} Rounds Available`}
@@ -452,6 +521,10 @@ const Dashboard = () => {
             </Link>
           </div>
         )}
+
+        {!isLoading && isWalletConnected && <NetworkMismatchCard className="mb-6" />}
+
+        {!isLoading && isWalletConnected && <FriendbotFundCard className="mb-6" />}
 
         {!isLoading && !isRoundActive && (
           <EmptyState
@@ -517,18 +590,28 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
-                <PriceChart height={280} asset={normalizedAsset} />
+<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+                <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
               {isWalletConnected && (
                 <RecentActivity
-                  items={activities}
+                  items={
+                    optimisticPrediction
+                      ? [
+                          {
+                            ...mapPredictionToActivityItem(optimisticPrediction),
+                            result: optimisticPrediction.status === 'FAILED' ? 'Failed' : 'Pending',
+                          } as RecentActivityItem,
+                          ...activities.filter((a) => a.id !== String(optimisticPrediction.id)),
+                        ]
+                      : activities
+                  }
                   isLoading={isActivitiesLoading}
                   error={activitiesError}
                   onRetry={fetchActivities}
                 />
               )}
-              <PredictionHistory userId={publicKey} />
+              <PredictionHistory userId={publicKey} optimisticPrediction={optimisticPrediction} />
             </div>
           </div>
         )}
@@ -539,10 +622,19 @@ const Dashboard = () => {
         onClose={() => {
           setIsBetModalOpen(false);
           setPendingPrediction(null);
+          if (optimisticPrediction?.status === 'FAILED') {
+            setOptimisticPrediction(null);
+          }
         }}
         predictionData={pendingPrediction}
+        onPending={(prediction) => setOptimisticPrediction(prediction)}
+        onPredictionError={() => setOptimisticPrediction(prev => prev ? { ...prev, status: 'FAILED' } : null)}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
+setOptimisticPrediction(null);
+          if (currentPriceRef.current !== null) {
+            setEntryPrice(currentPriceRef.current);
+          }
           void fetchStats();
           void fetchActivities();
         }}

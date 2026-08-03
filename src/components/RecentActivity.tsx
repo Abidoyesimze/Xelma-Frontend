@@ -92,10 +92,16 @@ export default function RecentActivity({ items, isLoading, error, onRetry }: Rec
               <div className="text-right">
                 <p
                   className={`text-sm font-bold ${
-                    item.result === 'Won' ? 'text-green-400' : 'text-rose-400'
+                    item.result === 'Won' ? 'text-green-400' :
+                    item.result === 'Pending' ? 'text-yellow-400 animate-pulse' :
+                    item.result === 'Failed' ? 'text-gray-500 line-through' :
+                    'text-rose-400'
                   }`}
                 >
-                  {item.result === 'Won' ? 'Correct' : 'Incorrect'}
+                  {item.result === 'Won' ? 'Correct' :
+                   item.result === 'Pending' ? 'Pending...' :
+                   item.result === 'Failed' ? 'Failed' :
+                   'Incorrect'}
                 </p>
                 <p className="text-xs text-gray-400">{item.amount} vXLM</p>
               </div>

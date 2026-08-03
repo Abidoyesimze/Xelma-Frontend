@@ -2,6 +2,8 @@ import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeT
 import { freighterAdapter } from './wallets';
 
 
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID = import.meta.env.VITE_XELMA_CONTRACT_ID || 'CD7V3L7JIP52EXWLYSOWXND4F3N65QZ2R54H6M77Y3S37Z55XHLXELMA';
@@ -12,66 +14,6 @@ const rpcServer = new rpc.Server(RPC_URL);
 export interface ContractTransactionResult {
   txHash: string;
   ledger: number;
-}
-
-export interface SorobanInspectorSnapshot {
-  position: unknown;
-  round: unknown;
-  source: 'rpc' | 'mock';
-  error?: string;
-  inspectedAt: string;
-}
-
-function mockInspectorSnapshot(error?: unknown): SorobanInspectorSnapshot {
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
-  return {
-    position: { direction: 'UP', stake: '100 vXLM', status: 'mocked' },
-    round: { id: 'mock-round', state: 'open', closesIn: 'mock/fallback' },
-    source: 'mock',
-    error: message,
-    inspectedAt: new Date().toISOString(),
-  };
-}
-
-async function simulateReadOnly(sourceAddress: string, functionName: string, args: xdr.ScVal[]): Promise<unknown> {
-  const account = await rpcServer.getAccount(sourceAddress);
-  const contractInstance = new Contract(XELMA_CONTRACT_ID);
-  const tx = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(contractInstance.call(functionName, ...args))
-    .setTimeout(30)
-    .build();
-
-  const simulation = await rpcServer.simulateTransaction(tx);
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Read-only ${functionName} failed: ${simulation.error}`);
-  }
-
-  const simWithResults = simulation as { results?: Array<{ retval?: xdr.ScVal }> };
-  const result = simWithResults.results?.[0]?.retval;
-  return result ? scValToNative(result) : null;
-}
-
-export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
-  try {
-    const walletArg = new Address(userAddress).toScVal();
-    const [position, round] = await Promise.all([
-      simulateReadOnly(userAddress, 'get_position', [walletArg]),
-      simulateReadOnly(userAddress, 'get_round_state', []),
-    ]);
-
-    return {
-      position,
-      round,
-      source: 'rpc',
-      inspectedAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn('Soroban inspector using mock fallback:', err);
-    return mockInspectorSnapshot(err);
-  }
 }
 
 /** Fee and resource breakdown from a Soroban simulation. */
@@ -88,15 +30,21 @@ export interface FeeEstimate {
   readBytes: string;
   /** Ledger write bytes. */
   writeBytes: string;
-  /**
-   * Base64 XDR of the prepared (unsigned) transaction — the exact payload that
-   * will be handed to Freighter for approval.
-   */
+  /** Prepared transaction XDR for previewing the unsigned payload. */
   xdr: string;
-  /** Hash of the prepared transaction, before signing. */
+  /** Prepared transaction hash for previewing the payload. */
   hash: string;
-  /** Network passphrase the transaction is built against. */
+  /** Network passphrase used to build the preview transaction. */
   networkPassphrase: string;
+}
+
+export interface SorobanInspectorSnapshot {
+  source: 'rpc' | 'mock';
+  status?: 'ok' | 'error';
+  position?: unknown;
+  round?: unknown;
+  error?: string;
+  inspectedAt?: string;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -137,6 +85,55 @@ async function pollTransaction(txHash: string): Promise<ContractTransactionResul
   }
 
   throw new Error('Transaction polling timed out after 60 seconds.');
+}
+
+export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
+  try {
+    const account = await rpcServer.getAccount(userAddress);
+    const contractInstance = new Contract(XELMA_CONTRACT_ID);
+
+    const positionTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_position', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const roundTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_round', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const [positionSimulation, roundSimulation] = await Promise.all([
+      rpcServer.simulateTransaction(positionTx),
+      rpcServer.simulateTransaction(roundTx),
+    ]);
+
+    const positionResult = 'results' in positionSimulation && Array.isArray(positionSimulation.results)
+      ? positionSimulation.results[0]?.retval
+      : undefined;
+    const roundResult = 'results' in roundSimulation && Array.isArray(roundSimulation.results)
+      ? roundSimulation.results[0]?.retval
+      : undefined;
+
+    return {
+      source: 'rpc',
+      status: 'ok',
+      position: positionResult,
+      round: roundResult,
+      inspectedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    return {
+      source: 'mock',
+      status: 'error',
+      error: err instanceof Error ? err.message : 'RPC unavailable',
+    };
+  }
 }
 
 /**
@@ -190,18 +187,30 @@ async function executeContractCall(
     throw new Error('Failed to assemble transaction layout with simulated resources.');
   }
 
-  // 5. Sign with the connected wallet
-  let signedXdrString: string;
+  // 5. Sign with Freighter wallet
+  let signedResult;
   try {
     onStatus?.('signing');
-    signedXdrString = await freighterAdapter.signTransaction(preparedTx.toXDR(), {
+    signedResult = await signTransaction(preparedTx.toXDR(), {
       networkPassphrase: NETWORK_PASSPHRASE,
     });
   } catch (err) {
-    console.error('Wallet sign transaction error:', err);
-    throw new Error(
-      err instanceof Error ? err.message : 'Failed to sign transaction with your wallet.',
-    );
+    console.error('Freighter sign transaction error:', err);
+    throw new Error('Failed to sign transaction with Freighter wallet.');
+  }
+
+  let signedXdrString: string | null = null;
+  if (typeof signedResult === 'string') {
+    signedXdrString = signedResult;
+  } else if (signedResult && typeof signedResult === 'object') {
+    if ('error' in signedResult && signedResult.error) {
+      throw new Error(`Freighter signing rejected: ${signedResult.error}`);
+    }
+    signedXdrString = (signedResult as { signedTxXdr?: string }).signedTxXdr || null;
+  }
+
+  if (!signedXdrString) {
+    throw new Error('Signing cancelled or rejected by user.');
   }
 
   // 6. Submit the signed transaction to RPC
@@ -258,24 +267,29 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if (!rpc.Api.isSimulationSuccess(simulation)) {
-    const error = rpc.Api.isSimulationError(simulation) ? simulation.error : 'Unknown simulation error';
-    throw new Error(`Simulation failed: ${error}`);
+  if ('error' in simulation && simulation.error) {
+    throw new Error(`Simulation failed: ${simulation.error}`);
   }
 
-  // Narrow to success response after the error check above.
-  // Use ReturnType inference since SimulateTransactionSuccessResponse is
-  // not exported by name in this stellar-sdk version.
-  type SimSuccess = Exclude<Awaited<ReturnType<typeof rpcServer.simulateTransaction>>, { error: unknown }>;
-  const simResult = simulation as SimSuccess;
-
-  // Prepare applies the simulation footprint & resource fee to the tx
+  // Apply simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
 
   const simDetails = (simResult as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } });
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
   const cost = simDetails.cost;
+  const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = 'minResourceFee' in simulation && simulation.minResourceFee
+    ? Number(simulation.minResourceFee)
+    : 0;
+  const cost = 'cost' in simulation ? simulation.cost : undefined;
+
+  const hashValue = typeof preparedTx.hash === 'function' ? preparedTx.hash() : null;
+  const hash: string = !hashValue
+    ? ''
+    : Buffer.isBuffer(hashValue)
+      ? hashValue.toString('hex')
+      : String(hashValue);
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
@@ -286,6 +300,12 @@ async function simulateContractCall(
     writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
     xdr: preparedTx.toXDR(),
     hash: preparedTx.hash().toString('hex'),
+    readBytes: '0',
+    writeBytes: '0',
+    xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'
+      ? (preparedTx as { toXDR: () => string }).toXDR()
+      : '',
+    hash,
     networkPassphrase: NETWORK_PASSPHRASE,
   };
 }

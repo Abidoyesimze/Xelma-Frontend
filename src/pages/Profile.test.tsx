@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock useProfileStore
@@ -64,6 +65,7 @@ describe('Profile Page', () => {
     it('renders the Profile heading', () => {
       mockStoreState({});
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Profile');
     });
@@ -71,6 +73,7 @@ describe('Profile Page', () => {
     it('renders the subtitle text', () => {
       mockStoreState({});
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(
         screen.getByText(/Manage the name, avatar, bio, and public link shown across Xelma/i),
@@ -80,6 +83,7 @@ describe('Profile Page', () => {
     it('renders the Edit profile button', () => {
       mockStoreState({});
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByRole('button', { name: /Edit profile/i })).toBeInTheDocument();
     });
@@ -89,6 +93,7 @@ describe('Profile Page', () => {
     it('shows loading spinner when isLoading is true and profile is null', () => {
       mockStoreState({ isLoading: true, profile: null });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
     });
@@ -96,6 +101,7 @@ describe('Profile Page', () => {
     it('shows Edit button in header while profile is loading and null', () => {
       mockStoreState({ isLoading: true, profile: null });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       // The Edit profile button is in the page header, rendered before the
       // conditional loading block, so it still appears.
@@ -113,6 +119,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText('TestUser')).toBeInTheDocument();
       expect(screen.getByText('Test bio')).toBeInTheDocument();
@@ -124,6 +131,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText('Anonymous Player')).toBeInTheDocument();
     });
@@ -134,6 +142,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText('Streamer mode')).toBeInTheDocument();
     });
@@ -144,6 +153,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText(/Your profile is ready to personalize/i)).toBeInTheDocument();
     });
@@ -157,6 +167,7 @@ describe('Profile Page', () => {
         error: 'Failed to load profile',
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
@@ -169,6 +180,7 @@ describe('Profile Page', () => {
         error: 'Failed to load profile',
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
       expect(mockLoadProfile).toHaveBeenCalled();
@@ -182,6 +194,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       fireEvent.click(screen.getByRole('button', { name: /Edit profile/i }));
 
@@ -194,6 +207,7 @@ describe('Profile Page', () => {
         isLoading: false,
       });
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       fireEvent.click(screen.getByRole('button', { name: /Edit profile/i }));
       expect(screen.getByTestId('profile-settings-modal')).toBeInTheDocument();
@@ -207,6 +221,7 @@ describe('Profile Page', () => {
     it('calls loadProfile on mount', () => {
       mockStoreState({});
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
 
       expect(mockLoadProfile).toHaveBeenCalledTimes(1);
     });
@@ -217,6 +232,7 @@ describe('Profile Page', () => {
       mockStoreState({});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       renderWithRouter(<Profile />);
+      render(<BrowserRouter><Profile /></BrowserRouter>);
       // All data comes from mocked store, no real fetch should occur
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();

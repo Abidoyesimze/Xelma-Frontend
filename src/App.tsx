@@ -14,14 +14,13 @@ import ComingSoonPage from './pages/ComingSoonPage';
 import OnboardingChecklist from './components/OnboardingChecklist';
 import { Trophy } from 'lucide-react';
 
+const NotFound = lazy(() => import('./pages/NotFound'));
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
-
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
-const Settings = lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
 
 function App() {
   const { pathname } = useLocation();
@@ -67,6 +66,7 @@ function App() {
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
               <Route path="*" element={<Navigate to="/" replace />} />
 
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </LazyBoundary>

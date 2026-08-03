@@ -10,6 +10,13 @@ import MaskedBalance from './MaskedBalance';
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
 
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
+import MaskedBalance from './MaskedBalance';
+import NetworkMismatchCard from './NetworkMismatchCard';
+import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
+import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
+
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -63,7 +70,7 @@ const WalletConnect = () => {
             role="status"
           >
             <AlertCircle className="w-4 h-4 mr-1 shrink-0" aria-hidden />
-            Switch to Testnet in Freighter
+            Switch to {EXPECTED_NETWORK_LABEL} in Freighter
           </div>
         )}
 
@@ -86,9 +93,20 @@ const WalletConnect = () => {
             >
               <Wallet className="w-4 h-4" />
             </div>
-            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate">
+            <a
+              href={accountUrl(publicKey)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={publicKey}
+              aria-label={`${shortAddress} — view on StellarExpert (${EXPLORER_NETWORK})`}
+              className={clsx(
+                'text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate',
+                'underline-offset-2 hover:underline hover:text-[#2C4BFD] dark:hover:text-[#BEC7FE] rounded',
+                focusRing
+              )}
+            >
               {shortAddress}
-            </span>
+            </a>
             {isAuthenticated ? (
               <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-label="Signed in to server" />
             ) : (
@@ -107,6 +125,8 @@ const WalletConnect = () => {
             </button>
           </div>
         </div>
+
+        <NetworkMismatchCard />
 
         {isPendingAuth && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/50 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">

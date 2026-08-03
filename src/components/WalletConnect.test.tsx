@@ -5,7 +5,19 @@ import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Mock the stores
-vi.mock('../store/useWalletStore');
+vi.mock('../store/useWalletStore', () => ({
+  useWalletStore: vi.fn((selector: unknown) => {
+    if (typeof selector === 'function') {
+      return (selector as (s: typeof mockWalletStore) => unknown)(mockWalletStore);
+    }
+    return mockWalletStore;
+  }),
+  selectIsWalletConnected: vi.fn(
+    (state: { status: string; publicKey: string | null }) =>
+      state.status === 'connected' && Boolean(state.publicKey),
+  ),
+  selectNeedsFunding: vi.fn(() => false),
+}));
 vi.mock('../store/useAuthStore');
 
 // Report Freighter as installed so the picker offers it in jsdom.
@@ -250,7 +262,9 @@ describe('WalletConnect', () => {
       const warning = screen.getByRole('status');
       expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
       expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
-      expect(screen.getByTestId('alert-icon')).toBeInTheDocument();
+      // WalletConnect's own banner and the <NetworkMismatchCard /> both render an
+      // <AlertCircle />, so expect at least one.
+      expect(screen.getAllByTestId('alert-icon').length).toBeGreaterThanOrEqual(1);
     });
   });
 

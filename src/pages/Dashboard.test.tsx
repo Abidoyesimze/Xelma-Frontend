@@ -1,5 +1,9 @@
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Configurable search params for testing deep-linking
+let mockSearchParams = new URLSearchParams();
+const mockSetSearchParams = vi.fn();
 
 // Mock the API client
 vi.mock('../lib/api-client', () => ({
@@ -40,7 +44,7 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }));
 
 import { useRoundStore } from '../store/useRoundStore';
@@ -58,7 +62,7 @@ const mockRoundStore = {
   isRoundActive: true,
   resolvedRound: null,
   fetchActiveRound: vi.fn(),
-  subscribeToRoundEvents: vi.fn(() => vi.fn()), // Returns unsubscribe function
+  subscribeToRoundEvents: vi.fn(() => vi.fn()),
   dismissResolvedRound: vi.fn(),
 };
 
@@ -95,6 +99,7 @@ vi.mock('../store/useWalletStore', () => ({
     }
   ),
   selectIsWalletConnected: vi.fn((state) => state.status === 'connected' && Boolean(state.publicKey)),
+  selectNeedsFunding: vi.fn(() => false),
 }));
 
 vi.mock('../hooks/useConnectionStatus', () => ({
@@ -112,13 +117,16 @@ vi.mock('../hooks/useConnectionStatus', () => ({
 }));
 
 // Mock all the components to focus on integration logic
-
 vi.mock('../components/PriceChart', () => ({
-  default: ({ height }: { height: number }) => (
+  default: ({ height }: { height: number; entryPrice?: number | null; onPriceUpdate?: (price: number) => void }) => (
     <div data-testid="price-chart" data-height={height}>
       Price Chart
     </div>
   ),
+}));
+
+vi.mock('../components/RoundTimeline', () => ({
+  default: () => <div data-testid="round-timeline">Timeline</div>,
 }));
 
 type PredictionCardMockProps = {
@@ -136,30 +144,30 @@ type PredictionCardMockProps = {
 
 vi.mock('../components/PredictionCard', () => ({
   default: (props: PredictionCardMockProps) => {
-    const { 
-      isWalletConnected, 
-      isRoundActive, 
-      isConnecting, 
-      isSubmittingPrediction, 
-      onPrediction 
+    const {
+      isWalletConnected,
+      isRoundActive,
+      isConnecting,
+      isSubmittingPrediction,
+      onPrediction,
     } = props;
-    
+
     return (
-      <div 
+      <div
         data-testid="prediction-card"
         data-wallet-connected={String(isWalletConnected)}
         data-round-active={String(isRoundActive)}
         data-connecting={String(isConnecting)}
         data-submitting={String(isSubmittingPrediction)}
       >
-        <button 
+        <button
           onClick={() => {
             if (onPrediction) {
-              onPrediction({ 
-                direction: 'UP', 
-                stake: '10', 
-                exactPrice: '100', 
-                isLegend: false 
+              onPrediction({
+                direction: 'UP',
+                stake: '10',
+                exactPrice: '100',
+                isLegend: false,
               });
             }
           }}
@@ -179,8 +187,6 @@ vi.mock('../components/PredictionHistory', () => ({
     </div>
   ),
 }));
-
-
 
 vi.mock('../components/EndRoundModal', () => ({
   default: ({
@@ -214,7 +220,14 @@ vi.mock('../components/BetModal', () => ({
       <button onClick={onClose} data-testid="close-bet-modal">Close</button>
       <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
     </div>
-  )
+  ),
+}));
+
+// RoundCard is not mocked — it renders for real so we can assert deep-link highlight
+vi.mock('../components/CountdownTimer', () => ({
+  default: ({ endTime }: { endTime: Date }) => (
+    <span data-testid="countdown-timer">{endTime.toISOString()}</span>
+  ),
 }));
 
 
@@ -222,16 +235,17 @@ describe('Dashboard', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    
+
+    // Reset search params to default (no round param)
+    mockSearchParams = new URLSearchParams();
+
     // Re-establish mock implementations for API client after reset
     vi.mocked(educationApi.getTip).mockResolvedValue(null);
     vi.mocked(educationApi.getGuides).mockResolvedValue([]);
     vi.mocked(statsApi.getNetworkStats).mockResolvedValue(null);
     vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
     vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
-    
-    // Don't use fake timers as they interfere with async operations
-    
+
     // Reset store mocks to default state
     Object.assign(mockRoundStore, {
       isRoundActive: true,
@@ -247,7 +261,7 @@ describe('Dashboard', () => {
   });
 
   afterEach(() => {
-    // Don't use real timers cleanup since we're not using fake timers
+    // no-op
   });
 
   describe('rendering', () => {
@@ -258,8 +272,6 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
     });
-
-
 
     it('passes correct props to PredictionCard', () => {
       render(<Dashboard />);
@@ -278,12 +290,16 @@ describe('Dashboard', () => {
       expect(predictionHistory).toHaveAttribute('data-user-id', 'GTEST123');
     });
 
+    it('renders the share button', () => {
+      render(<Dashboard />);
 
+      expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
+      expect(screen.getByText('Share')).toBeInTheDocument();
+    });
   });
 
   describe('wallet connection states', () => {
     it('handles disconnected wallet', () => {
-      // Mock disconnected wallet state
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
         return selectFromStore(selector, store);
@@ -293,10 +309,8 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-wallet-connected', 'false');
-      
+
       const predictionHistory = screen.getByTestId('prediction-history');
-      // When publicKey is null, the data-user-id attribute won't be set to "null" string
-      // Instead, React will not render the attribute or render it as empty
       expect(predictionHistory).toBeInTheDocument();
 
       expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
@@ -416,7 +430,7 @@ describe('Dashboard', () => {
   describe('bet modal interaction', () => {
     it('opens bet modal on prediction and closes on close action', async () => {
       render(<Dashboard />);
-      
+
       const submitButton = screen.getByTestId('submit-prediction');
       fireEvent.click(submitButton);
 

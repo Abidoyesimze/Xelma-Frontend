@@ -25,6 +25,8 @@ vi.mock('../components/WalletConnect', () => ({
 // Mock useWalletStore
 vi.mock('../store/useWalletStore', () => ({
   useWalletStore: vi.fn(),
+  selectIsWalletConnected: vi.fn((state: { status: string; publicKey: string | null }) => state.status === 'connected' && Boolean(state.publicKey)),
+  selectNeedsFunding: vi.fn(() => false),
 }));
 
 // Mock sonner toast

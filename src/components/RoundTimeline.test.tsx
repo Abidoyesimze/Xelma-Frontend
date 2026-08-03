@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 
 const mockRoundStore: Record<string, unknown> = {
   activeRound: null,
@@ -39,6 +39,7 @@ describe('RoundTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
@@ -48,14 +49,14 @@ describe('RoundTimeline', () => {
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
     expect(screen.getByText(/Current State:/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Upcoming/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Upcoming/i)).toBeInTheDocument();
   });
 
   it('renders upcoming state when there is no active round', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     render(<RoundTimeline />);
 
-    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
     const currentStateContainer = screen.getByText('Current State:').closest('div');
     expect(currentStateContainer).toBeTruthy();
     expect(currentStateContainer && currentStateContainer.textContent).toMatch(/Upcoming/i);
@@ -141,8 +142,10 @@ describe('RoundTimeline', () => {
   it('handles empty round data gracefully', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
 
-    const { container } = render(<RoundTimeline />);
-    expect(container).toBeInTheDocument();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const renderComponent = () => render(<RoundTimeline />);
+    const rendered = renderComponent();
+
+    expect(() => rendered).not.toThrow();
+    expect(getCurrentStateLabel()?.textContent).toMatch(/Upcoming/i);
   });
 });

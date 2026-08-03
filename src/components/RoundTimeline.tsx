@@ -2,14 +2,13 @@ import { Fragment, useState, useEffect, useRef } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
-
 interface TimelineState {
   label: string;
   key: 'upcoming' | 'live' | 'resolving' | 'finished';
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Pending', key: 'upcoming' },
+  { label: 'Next Round', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
@@ -94,36 +93,27 @@ const RoundTimeline: React.FC = () => {
   const isDisconnected = currentState === 'disconnected';
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
-  const currentStateLabel = currentState === 'upcoming'
-    ? 'Upcoming'
-    : currentState === 'disconnected'
-      ? 'Unknown'
-      : currentState === 'loading'
-        ? 'Connecting'
-        : TIMELINE_STATES.find((s) => s.key === currentState)?.label || 'Unknown';
+  const currentStateLabel =
+    currentState === 'upcoming'
+      ? 'Upcoming'
+      : currentState === 'disconnected'
+        ? 'Unknown'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : TIMELINE_STATES.find((s) => s.key === currentState)?.label || currentState;
 
+  const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
-  const prevStateRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {
-      const label =
-        TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-        (currentState === 'disconnected'
-          ? 'Disconnected'
-          : currentState === 'loading'
-            ? 'Connecting'
-            : currentState);
-      const timer = window.setTimeout(() => {
-        setStateAnnouncement(`Round is now ${label}`);
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${currentStateLabel}`);
       }, 0);
       prevStateRef.current = currentState;
-      return () => window.clearTimeout(timer);
+      return () => clearTimeout(timer);
     }
-    return undefined;
-  }, [currentState]);
-
-
+  }, [currentState, currentStateLabel]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
@@ -196,7 +186,7 @@ const RoundTimeline: React.FC = () => {
                 {/* Circle Indicator */}
                 <div
                   className={`
-                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center
+                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center 
                     font-bold text-sm lg:text-base mb-2 transition-all duration-300
                     ${
                       isActive
@@ -273,7 +263,7 @@ const RoundTimeline: React.FC = () => {
               }
             `}
           >
-            {currentStateLabel}
+            {currentStateLabel || 'Unknown'}
           </span>
         </div>
 

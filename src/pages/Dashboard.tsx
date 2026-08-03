@@ -35,6 +35,8 @@ import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma
 import { mockUserStats, mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
+import { toast } from "sonner";
+import { Share2 } from "lucide-react";
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
   const isWin = typeof pred.isWin === "boolean"
@@ -180,6 +182,27 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const selectedAsset = (searchParams.get("asset") as Asset) || "XLM";
   const normalizedAsset = ASSETS.includes(selectedAsset) ? selectedAsset : "XLM";
+
+  // Round deep-link: read ?round=<id>, find matching mock round, highlight it
+  const deepLinkedRoundId = useMemo(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return null;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id < 1) return null;
+    return id;
+  }, [searchParams]);
+
+  // Show toast for unknown round ids (non-numeric or out of range)
+  useEffect(() => {
+    const raw = searchParams.get("round");
+    if (raw === null) return;
+    const id = Number(raw);
+    if (Number.isFinite(id) && id >= 1 && mockRounds.some((r) => r.id === id)) return;
+    // Raw string exists but doesn't match any round
+    toast.error(`Round "${raw}" not found — showing all rounds`, {
+      id: "round-deeplink-unknown",
+    });
+  }, [searchParams]);
 
   // Filter mock rounds by the selected asset
   const filteredRounds = useMemo(
@@ -405,11 +428,38 @@ const Dashboard = () => {
 
             {/* Rounds grid filtered by selected asset */}
             {filteredRounds.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <>
+                {/* Share button for deep-linking */}
+                <div className="mb-4 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = new URL(window.location.href);
+                      try {
+                        await navigator.clipboard.writeText(url.toString());
+                        toast.success("Link copied to clipboard", {
+                          id: "share-round-url",
+                        });
+                      } catch {
+                        toast.error("Could not copy link", {
+                          id: "share-round-url",
+                        });
+                      }
+                    }}
+                    data-testid="share-rounds-btn"
+                    className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
+                    aria-label="Copy share link"
+                  >
+                    <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Share
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredRounds.map((round) => (
                   <RoundCard
                     key={round.id}
                     round={round}
+                    isHighlighted={deepLinkedRoundId === round.id}
                     onSubmitPrediction={() => {
                       setPendingPrediction({
                         direction: "UP",
@@ -421,6 +471,7 @@ const Dashboard = () => {
                   />
                 ))}
               </div>
+              </>
             ) : (
               <EmptyState
                 title={`No ${normalizedAsset} Rounds Available`}

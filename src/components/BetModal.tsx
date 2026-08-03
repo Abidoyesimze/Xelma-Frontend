@@ -184,10 +184,94 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     }
   }
 
+  const handleConfirm = async () => {
+    const stakeError = validateStake(stake, balance);
+    const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
+
+    if (stakeError || exactPriceError) {
+      setFormError(stakeError || exactPriceError || 'Invalid prediction details');
+      return;
+    }
+
+    setFormError('');
+    setStep('preparing');
+
+    if (!publicKey || !isConnected) {
+      setStep('wallet_required');
+      return;
+    }
+    // Immediately show preparing state before starting async transaction
+    setStep('preparing');
+    // Yield to the event loop so the UI can update before awaiting the contract call
+    await new Promise(resolve => setTimeout(resolve, 0));
+    try {
+      if (onPending && publicKey) {
+        onPending({
+          id: `pending-${Date.now()}`,
+          direction,
+          stake,
+          exactPrice: mode === 'precision' ? exactPrice : undefined,
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          mode: mode === 'precision' ? 'precision' : 'updown',
+          asset: 'XLM',
+        } as UserPrediction);
+      }
+
+      const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
+        setStep(s);
+      };
+
+      let result;
+      const isPrecision = mode === 'precision';
+
+      if (isPrecision) {
+        result = await place_precision_prediction(
+          publicKey,
+          direction,
+          stake,
+          exactPrice,
+          updateStatus
+        );
+      } else {
+        result = await place_bet(
+          publicKey,
+          direction,
+          stake,
+          updateStatus
+        );
+      }
+
+      setTxHash(result.txHash);
+      setStep('syncing');
+
+      // Submit to backend
+      await predictionsApi.submit({
+        direction,
+        stake,
+        isLegend: mode === 'precision',
+        exactPrice: mode === 'precision' ? exactPrice : undefined,
+      });
+
+      setStep('success');
+      if (onSuccess) {
+        onSuccess(result.txHash);
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Prediction submission error:', error);
+      setErrorMsg(error.message || 'An unexpected error occurred');
+      setStep('error');
+      if (onPredictionError) {
+        onPredictionError();
+      }
+    }
+  };
+
   const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
   handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
 
-  const handleConfirmRef = useRef(handleConfirm);
+  const handleConfirmRef = useRef<() => void>(() => {});
   handleConfirmRef.current = handleConfirm;
 
   useEffect(() => {
@@ -238,90 +322,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     setFormError('');
     const error = validateStake(value, balance);
     setInlineStakeError(error || '');
-  };
-
-  const handleConfirm = async () => {
-    const stakeError = validateStake(stake, balance);
-    const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
-
-    if (stakeError || exactPriceError) {
-      setFormError(stakeError || exactPriceError || 'Invalid prediction details');
-      return;
-    }
-
-    setFormError('');
-    setStep('preparing');
-
-    if (!publicKey || !isConnected) {
-      setStep('wallet_required');
-      return;
-    }
-    // Immediately show preparing state before starting async transaction
-    setStep('preparing');
-    // Yield to the event loop so the UI can update before awaiting the contract call
-    await new Promise(resolve => setTimeout(resolve, 0));
-    try {
-      if (onPending && publicKey) {
-        onPending({
-          id: `pending-${Date.now()}`,
-          direction,
-          stake,
-          exactPrice: mode === 'precision' ? exactPrice : undefined,
-          status: 'PENDING',
-          createdAt: new Date().toISOString(),
-          mode: mode === 'precision' ? 'precision' : 'updown',
-          asset: 'XLM',
-        } as UserPrediction);
-      }
-      
-      const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
-        setStep(s);
-      };
-
-      let result;
-      const isPrecision = mode === 'precision';
-
-      if (isPrecision) {
-        result = await place_precision_prediction(
-          publicKey,
-          direction,
-          stake,
-          exactPrice,
-          updateStatus
-        );
-      } else {
-        result = await place_bet(
-          publicKey,
-          direction,
-          stake,
-          updateStatus
-        );
-      }
-
-      setTxHash(result.txHash);
-      setStep('syncing');
-
-      // Submit to backend
-      await predictionsApi.submit({
-        direction,
-        stake,
-        isLegend: mode === 'precision',
-        exactPrice: mode === 'precision' ? exactPrice : undefined,
-      });
-
-      setStep('success');
-      if (onSuccess) {
-        onSuccess(result.txHash);
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Prediction submission error:', error);
-      setErrorMsg(error.message || 'An unexpected error occurred');
-      setStep('error');
-      if (onPredictionError) {
-        onPredictionError();
-      }
-    }
   };
 
   return (

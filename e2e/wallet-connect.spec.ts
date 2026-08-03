@@ -1,23 +1,21 @@
 import { test, expect } from '@playwright/test';
 
-
-const MOCK_ADDRESS = MOCK_ADDRESS;
-
+const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
 
 /** Inject a fake Freighter wallet object before any app code runs. */
 function mockFreighter(page: import('@playwright/test').Page) {
-  return page.addInitScript((mockAddress) => {
+  return page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).freighter = {
       isConnected: () => Promise.resolve({ isConnected: true }),
       requestAccess: () =>
-        Promise.resolve({ address: mockAddress, error: null }),
+        Promise.resolve({ address: MOCK_ADDRESS, error: null }),
       getAddress: () =>
-        Promise.resolve({ address: mockAddress, error: null }),
+        Promise.resolve({ address: MOCK_ADDRESS, error: null }),
       getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
       signMessage: (message: string) =>
         Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
     };
-  }, MOCK_ADDRESS);
+  });
 }
 
 test.describe('Wallet Connect – Freighter Mocked', () => {

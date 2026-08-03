@@ -33,6 +33,7 @@ import NetworkMismatchCard from '../components/NetworkMismatchCard';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
+import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";

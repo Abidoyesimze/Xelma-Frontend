@@ -36,6 +36,7 @@ function poolSize(round: MockRound): number {
   return round.totalPool ?? 0;
 }
 
+export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
 export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);

@@ -5,6 +5,10 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type ChangeEvent } from 'react';
+
+import { useTranslation } from 'react-i18next';
+import { Menu, X } from 'lucide-react';
+
 import { useTranslation } from 'react-i18next';
 import { Menu, X, Search } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';

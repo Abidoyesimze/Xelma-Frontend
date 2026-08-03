@@ -4,6 +4,11 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 
+import MaskedBalance from './MaskedBalance';
+
+        
+import WalletPicker from './WalletPicker';
+import type { WalletId } from '../lib/wallets';
 
 import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';

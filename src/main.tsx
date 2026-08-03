@@ -15,6 +15,10 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
         }
       },
       onRegisterError(error: unknown) {
+        console.warn('Service worker registration failed:', error);
+      },
+    });
+  });
         console.warn('Service worker registration failed:', error)
       }
     })

@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StatsCard from './StatsCard';
 import { useWalletStore } from '../store/useWalletStore';
+import { claim_winnings } from '../lib/xelma-contract';
 import type { MockUserStats } from '../types';
 
 // Keep the real selectors (selectIsWalletConnected derives from state) and only
@@ -155,6 +156,73 @@ describe('StatsCard', () => {
     it('omits the retry button when no onRetry handler is provided', () => {
       renderCard({}, { error: 'Failed to load stats' });
       expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('claim flow status machine', () => {
+    it('shows the shared status timeline and a truncated tx hash on success', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({
+        txHash: '0123456789abcdef',
+        ledger: 1,
+      });
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: /claim rewards/i })).not.toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Tx: 012345…abcdef')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /view on stellarexpert/i })).toHaveAttribute(
+        'href',
+        expect.stringContaining('0123456789abcdef'),
+      );
+    });
+
+    it('prevents double-submit while a claim is in-flight', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(claim_winnings).mockImplementation(
+        () =>
+          new Promise<{ txHash: string; ledger: number }>((resolve) => {
+            resolveClaim = resolve;
+          }),
+      );
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
+      });
+
+      // Button is replaced by the timeline while in-flight, so it cannot be re-clicked.
+      expect(screen.queryByRole('button', { name: /claim rewards/i })).not.toBeInTheDocument();
+
+      resolveClaim({ txHash: 'abc', ledger: 1 });
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+      expect(claim_winnings).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows an inline error and retry action when the claim fails', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockRejectedValue(new Error('Freighter signing rejected'));
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/transaction failed/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText('Freighter signing rejected')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
   });
 });

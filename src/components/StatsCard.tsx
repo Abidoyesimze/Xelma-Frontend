@@ -1,13 +1,12 @@
 // ISSUE: Replace mock stats with live API call to backend /api/stats
 
-import { useState } from 'react';
 import type { MockUserStats } from '../types';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
-import { toast } from 'sonner';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
 import PanelHeader from './PanelHeader';
+import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -20,31 +19,27 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const checkConnection = useWalletStore((s) => s.checkConnection);
-  
-  const [isClaiming, setIsClaiming] = useState(false);
+
+  // Shared transaction status machine (preparing → signing → submitting)
+  const tx = useTxStatusMachine();
 
   const pendingWinnings = stats.pendingWinnings || 0;
-  const canClaim = isWalletConnected && pendingWinnings > 0 && !isClaiming;
+  const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
 
   const handleClaim = async () => {
-    if (!canClaim || !publicKey) return;
-    
+    // Guard against double-submits while a claim is already in-flight.
+    if (!canClaim || !publicKey || !tx.start()) return;
+
     try {
-      setIsClaiming(true);
-      toast.loading('Claiming rewards...', { id: 'claim-rewards' });
-      
-      const result = await claim_winnings(publicKey);
-      
-      toast.success(`Successfully claimed rewards! Tx: ${result.txHash.slice(0, 8)}...`, { id: 'claim-rewards' });
-      
+      const result = await claim_winnings(publicKey, tx.updateStatus);
+      tx.succeed(result.txHash);
+
       // Refresh wallet balance/state
       await checkConnection();
     } catch (error) {
       console.error('Claim failed:', error);
       const msg = error instanceof Error ? error.message : 'Failed to claim rewards.';
-      toast.error(msg, { id: 'claim-rewards' });
-    } finally {
-      setIsClaiming(false);
+      tx.fail(msg);
     }
   };
 
@@ -137,21 +132,42 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
         )}
       </dl>
 
-      <button
-        type="button"
-        disabled={!canClaim}
-        onClick={handleClaim}
-        title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
-        className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
-          ${canClaim 
-            ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
-            : 'cursor-not-allowed border-white/10 bg-white/5 text-gray-500'}`}
-      >
-        {isClaiming ? 'Claiming...' : 'Claim Rewards'}
-      </button>
-      <p className="mt-2 text-center text-xs text-gray-400">
-        {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
-      </p>
+      {tx.step === 'idle' ? (
+        <>
+          <button
+            type="button"
+            disabled={!canClaim}
+            onClick={handleClaim}
+            title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
+            className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
+              ${canClaim 
+                ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
+                : 'cursor-not-allowed border-white/10 bg-white/5 text-gray-500'}`}
+          >
+            Claim Rewards
+          </button>
+          <p className="mt-2 text-center text-xs text-gray-400">
+            {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
+          </p>
+        </>
+      ) : (
+        <div className="mt-6">
+          <TxStatusTimeline
+            step={tx.step}
+            txHash={tx.txHash}
+            errorMessage={tx.errorMessage}
+            successTitle="Rewards Claimed!"
+            successMessage="Your pending winnings have been claimed on-chain."
+            stepCopy={{
+              preparing: 'Preparing Claim...',
+              submitting: 'Submitting Claim to Network...',
+              syncing: 'Syncing Claim to Backend...',
+            }}
+            onRetry={handleClaim}
+            onDone={tx.reset}
+          />
+        </div>
+      )}
     </section>
   );
 }

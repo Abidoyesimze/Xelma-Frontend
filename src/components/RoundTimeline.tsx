@@ -8,7 +8,7 @@ interface TimelineState {
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Next Round', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
@@ -93,30 +93,27 @@ const RoundTimeline: React.FC = () => {
   const isDisconnected = currentState === 'disconnected';
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
+  const currentStateLabel =
+    currentState === 'upcoming'
+      ? 'Upcoming'
+      : currentState === 'disconnected'
+        ? 'Unknown'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : TIMELINE_STATES.find((s) => s.key === currentState)?.label || currentState;
 
   const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
-  // Tracks the previous render's `currentState` to detect transitions without
-  // a render-time setState.
-  const prevStateRef = useRef(currentState);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {
-      const label =
-        TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-        (currentState === 'disconnected'
-          ? 'Disconnected'
-          : currentState === 'loading'
-            ? 'Connecting'
-            : currentState);
-      const timer = window.setTimeout(() => {
-        setStateAnnouncement(`Round is now ${label}`);
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${currentStateLabel}`);
       }, 0);
       prevStateRef.current = currentState;
-      return () => window.clearTimeout(timer);
+      return () => clearTimeout(timer);
     }
-    return undefined;
-  }, [currentState]);
+  }, [currentState, currentStateLabel]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
@@ -189,7 +186,7 @@ const RoundTimeline: React.FC = () => {
                 {/* Circle Indicator */}
                 <div
                   className={`
-                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center
+                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center 
                     font-bold text-sm lg:text-base mb-2 transition-all duration-300
                     ${
                       isActive
@@ -266,8 +263,7 @@ const RoundTimeline: React.FC = () => {
               }
             `}
           >
-            {TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-              'Unknown'}
+            {currentStateLabel || 'Unknown'}
           </span>
         </div>
 

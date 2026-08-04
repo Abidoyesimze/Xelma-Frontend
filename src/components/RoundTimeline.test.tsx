@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 
 const mockRoundStore: Record<string, unknown> = {
   activeRound: null,
@@ -39,6 +39,7 @@ describe('RoundTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
@@ -48,6 +49,9 @@ describe('RoundTimeline', () => {
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
     expect(screen.getByText(/Current State:/i)).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText(/Upcoming/i);
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Upcoming/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Upcoming/i)).toBeInTheDocument();
   });
 
@@ -55,6 +59,9 @@ describe('RoundTimeline', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     render(<RoundTimeline />);
 
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     const currentStateContainer = screen.getByText('Current State:').closest('div');
     expect(currentStateContainer).toBeTruthy();
@@ -144,6 +151,14 @@ describe('RoundTimeline', () => {
     const renderComponent = () => render(<RoundTimeline />);
     expect(renderComponent).not.toThrow();
     renderComponent();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    const { container } = render(<RoundTimeline />);
+    expect(container).toBeInTheDocument();
+    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+    const rendered = renderComponent();
+
+    expect(() => rendered).not.toThrow();
+    expect(getCurrentStateLabel()?.textContent).toMatch(/Upcoming/i);
   });
 });

@@ -6,11 +6,17 @@ import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
-import { AssetIcon } from './icons';
+
+const ASSET_ICONS: Record<string, string> = {
+  BTC: '₿',
+  ETH: 'Ξ',
+  XLM: '✦',
+};
 
 interface RoundCardProps {
   round: MockRound;
   onSubmitPrediction: (round: MockRound) => void;
+  isHighlighted?: boolean;
 }
 
 function getStatusMeta(round: MockRound, secondsLeft: number) {
@@ -31,6 +37,8 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
+export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
+  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
@@ -39,6 +47,13 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [round.closesInSeconds]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -54,8 +69,11 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
 
   return (
     <article
-      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION}`}
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
+        isHighlighted ? 'accent-border-teal' : ''
+      }`}
       data-testid="round-card"
+      data-highlighted={isHighlighted ? 'true' : 'false'}
     >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {statusAnnouncement}
@@ -64,10 +82,10 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-[#BEC7FE]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]"
             aria-hidden
           >
-            <AssetIcon asset={round.asset} size={20} />
+            {ASSET_ICONS[round.asset]}
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-white">{round.asset}/USD</h3>
@@ -103,7 +121,6 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
-          {/* eslint-disable-next-line react-hooks/purity */}
           <CountdownTimer endTime={endTime} />
         </div>
       </div>

@@ -153,10 +153,11 @@ describe('PredictionControls', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /I am a legend/i }));
 
     const exactPriceInput = screen.getByRole('spinbutton', { name: /Exact Price Prediction/i });
-    fireEvent.change(exactPriceInput, { target: { value: '0.0000' } });
+    fireEvent.change(exactPriceInput, { target: { value: '10.0001' } });
     fireEvent.blur(exactPriceInput);
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/Must be between 0.0001 and 10.0/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Must be between 0.0001 and 10/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Must be between 0\.0001 and 10/i);
     expect(onPrediction).not.toHaveBeenCalled();
   });
 

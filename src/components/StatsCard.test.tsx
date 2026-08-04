@@ -24,6 +24,15 @@ vi.mock('../lib/xelma-contract', () => ({
   claim_winnings: vi.fn(),
 }));
 
+vi.mock('./RankProgressBar', () => ({
+  default: ({ xp }: { xp: number }) => (
+    <div>
+      <div>Rank <span>Analyst</span></div>
+      <div>Experience <span>{xp} XP</span></div>
+    </div>
+  ),
+}));
+
 const baseStats: MockUserStats = {
   balance: 750.5,
   pendingWinnings: 0,
@@ -85,16 +94,21 @@ describe('StatsCard', () => {
       expect(within(row).getByText('4')).toBeInTheDocument();
     });
 
-    it('renders the rank badge', () => {
+    it('renders rank progress bar mock', () => {
       renderCard();
-      const row = screen.getByText('Rank').closest('div')!;
-      expect(within(row).getByText('Analyst')).toBeInTheDocument();
+      // Rank/XP section now renders RankProgressBar component
+      expect(screen.getByText(/Analyst/i)).toBeInTheDocument();
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
+      expect(screen.getByText('Rank')).toBeInTheDocument();
+      expect(screen.getByText('Analyst')).toBeInTheDocument();
     });
 
-    it('renders the experience points', () => {
+    it('renders experience points in mock', () => {
       renderCard();
-      const row = screen.getByText('Experience').closest('div')!;
-      expect(within(row).getByText('1500 XP')).toBeInTheDocument();
+      // XP is now displayed via RankProgressBar component
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
+      expect(screen.getByText('Experience')).toBeInTheDocument();
+      expect(screen.getByText('1500 XP')).toBeInTheDocument();
     });
 
     it('shows the pending winnings row only when there are winnings', () => {

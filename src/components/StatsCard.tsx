@@ -7,6 +7,7 @@ import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
 import PanelHeader from './PanelHeader';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
+import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -99,8 +100,12 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
       <dl className="mt-5 space-y-4">
         <div className="flex items-center justify-between">
           <dt className="text-sm text-gray-400">Practice Balance</dt>
-          <dd className="text-lg font-bold text-cyan-300">
-            {formatVXLM(stats.balance)}
+          <dd>
+            <MaskedBalance
+              value={formatVXLM(stats.balance)}
+              label="Practice balance"
+              className="text-lg font-bold text-cyan-300"
+            />
           </dd>
         </div>
 
@@ -125,8 +130,12 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
         {pendingWinnings > 0 && (
           <div className="flex items-center justify-between border-t border-white/10 pt-4">
             <dt className="text-sm text-gray-400 text-amber-200">Pending Winnings</dt>
-            <dd className="font-mono text-sm font-bold text-amber-300">
-              {pendingWinnings.toLocaleString()} vXLM
+            <dd>
+              <MaskedBalance
+                value={`${pendingWinnings.toLocaleString()} vXLM`}
+                label="Pending winnings"
+                className="font-mono text-sm font-bold text-amber-300"
+              />
             </dd>
           </div>
         )}

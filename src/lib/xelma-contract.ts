@@ -267,8 +267,9 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const errorMsg = 'error' in simulation ? simulation.error : 'Simulation was not successful';
+    throw new Error(`Simulation failed: ${errorMsg}`);
   }
 
   // Apply simulation footprint & resource fee to the tx
@@ -290,6 +291,8 @@ async function simulateContractCall(
     : Buffer.isBuffer(hashValue)
       ? hashValue.toString('hex')
       : String(hashValue);
+
+  const cost = simulation.cost as unknown as Record<string, unknown> | undefined;
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),

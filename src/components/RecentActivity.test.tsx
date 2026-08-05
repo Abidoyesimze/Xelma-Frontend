@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import RecentActivity from './RecentActivity';
 import type { RecentActivityItem } from '../types';
@@ -85,6 +85,57 @@ describe('RecentActivity', () => {
     it('still renders the section heading when empty', () => {
       render(<RecentActivity items={[]} />);
       expect(screen.getByText('Recent Predictions')).toBeInTheDocument();
+    });
+  });
+
+  describe('filter chips', () => {
+    it('renders all three filter options', () => {
+      render(<RecentActivity items={mockItems} />);
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(3);
+      expect(tabs[0]).toHaveTextContent('all');
+      expect(tabs[1]).toHaveTextContent('correct');
+      expect(tabs[2]).toHaveTextContent('incorrect');
+    });
+
+    it('defaults to "all" filter showing all items', () => {
+      render(<RecentActivity items={mockItems} />);
+      expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    });
+
+    it('filters to show only correct (Won) items when "correct" is selected', () => {
+      render(<RecentActivity items={mockItems} />);
+      fireEvent.click(screen.getByRole('tab', { name: 'correct' }));
+      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+      expect(screen.getByText('BTC')).toBeInTheDocument();
+      expect(screen.getByText('XLM')).toBeInTheDocument();
+      expect(screen.queryByText('ETH')).not.toBeInTheDocument();
+    });
+
+    it('filters to show only incorrect (Lost) items when "incorrect" is selected', () => {
+      render(<RecentActivity items={mockItems} />);
+      fireEvent.click(screen.getByRole('tab', { name: 'incorrect' }));
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(screen.getByText('ETH')).toBeInTheDocument();
+      expect(screen.queryByText('BTC')).not.toBeInTheDocument();
+      expect(screen.queryByText('XLM')).not.toBeInTheDocument();
+    });
+
+    it('shows filter-specific empty message when no items match', () => {
+      const allWon: RecentActivityItem[] = [
+        { id: '1', asset: 'BTC', result: 'Won', amount: 10, mode: 'updown' },
+      ];
+      render(<RecentActivity items={allWon} />);
+      fireEvent.click(screen.getByRole('tab', { name: 'incorrect' }));
+      expect(screen.getByText(/no incorrect predictions yet/i)).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    });
+
+    it('shows default empty message when items array is empty regardless of filter', () => {
+      render(<RecentActivity items={[]} />);
+      fireEvent.click(screen.getByRole('tab', { name: 'correct' }));
+      expect(screen.getByText(/no predictions yet/i)).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
     });
   });
 

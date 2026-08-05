@@ -118,7 +118,7 @@ vi.mock('../hooks/useConnectionStatus', () => ({
 
 // Mock all the components to focus on integration logic
 vi.mock('../components/PriceChart', () => ({
-  default: ({ height }: { height: number }) => (
+  default: ({ height }: { height: number; entryPrice?: number | null; onPriceUpdate?: (price: number) => void }) => (
     <div data-testid="price-chart" data-height={height}>
       Price Chart
     </div>

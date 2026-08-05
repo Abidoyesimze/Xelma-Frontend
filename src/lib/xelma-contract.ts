@@ -1,3 +1,7 @@
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { freighterAdapter } from './wallets';
+
+
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
@@ -271,6 +275,10 @@ async function simulateContractCall(
   // Apply simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
 
+  const simDetails = (simResult as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } });
+  const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+  const cost = simDetails.cost;
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = 'minResourceFee' in simulation && simulation.minResourceFee
     ? Number(simulation.minResourceFee)
@@ -291,6 +299,10 @@ async function simulateContractCall(
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
     instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
+    readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
+    writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
+    xdr: preparedTx.toXDR(),
+    hash: preparedTx.hash().toString('hex'),
     readBytes: '0',
     writeBytes: '0',
     xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'

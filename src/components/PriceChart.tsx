@@ -3,12 +3,15 @@ import {
   createChart,
   ColorType,
   LineSeries,
+  CandlestickSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
-import { mergePricePoints } from "./PriceChart.helpers";
+import { mergePricePoints, toCandlestickData } from "./PriceChart.helpers";
 import { mockPriceData } from "../data/mockData";
 import type { Asset } from "../types/asset";
 import { socketService } from "../lib/socket";
@@ -19,7 +22,9 @@ import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
   height?: number;
-  asset?: Asset;
+asset?: Asset;
+  entryPrice?: number | null;
+  onPriceUpdate?: (price: number) => void;
 }
 
 type PriceUpdatePayload = {
@@ -88,6 +93,28 @@ function buildPriceLabels(points: PricePoint[]): number[] {
   return Array.from(new Set(labels.map((value) => Number(value.toFixed(6))))).sort((a, b) => b - a);
 }
 
+type ChartMode = "line" | "candlestick";
+
+const CHART_MODE_STORAGE_KEY = "xelma-price-chart-mode";
+
+function getStoredChartMode(): ChartMode {
+  try {
+    const stored = localStorage.getItem(CHART_MODE_STORAGE_KEY);
+    if (stored === "candlestick" || stored === "line") return stored;
+  } catch {
+    // localStorage unavailable
+  }
+  return "line";
+}
+
+function persistChartMode(mode: ChartMode): void {
+  try {
+    localStorage.setItem(CHART_MODE_STORAGE_KEY, mode);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 const ASSET_COLORS: Record<string, string> = {
   BTC: "#F7931A",
   ETH: "#627EEA",
@@ -100,17 +127,20 @@ const ASSET_BG: Record<string, string> = {
   XLM: "linear-gradient(135deg, #1e3a5f, #0a1929)",
 };
 
-const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
+const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: PriceChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Line"> | ISeriesApi<"Candlestick"> | null>(null);
   const [data, setData] = useState<PricePoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [chartMode, setChartMode] = useState<ChartMode>(getStoredChartMode);
 
   // y-coordinate of the last data point for the badge
   const [badgeY, setBadgeY] = useState<number | null>(null);
+  // y-coordinate of the entry-price marker line label
+  const [entryY, setEntryY] = useState<number | null>(null);
   // y-coordinates for each price label
   const [labelYs, setLabelYs] = useState<number[]>([]);
 
@@ -124,6 +154,15 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
   const resizeTimeoutRef = useRef<number | null>(null);
   const socketUpdateTimeoutRef = useRef<number | null>(null);
   const pendingDataRef = useRef<PricePoint[]>([]);
+
+  // Entry-price marker refs
+  const entryPriceLineRef = useRef<IPriceLine | null>(null);
+  const entryPriceRef = useRef<number | null>(null);
+  // Keep the latest onPriceUpdate callback in a ref so effects never read a stale one
+  const onPriceUpdateRef = useRef<PriceChartProps["onPriceUpdate"]>(onPriceUpdate);
+  useEffect(() => {
+    onPriceUpdateRef.current = onPriceUpdate;
+  }, [onPriceUpdate]);
 
   // Keep dataRef in sync with data
   useEffect(() => {
@@ -179,24 +218,111 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
 
     chartRef.current = chart;
 
-    const lineSeries = chart.addSeries(LineSeries, {
-      color: "#FFF",
-      lineWidth: 3,
-      priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-      lineType: 2, // LineType.Curved
-    });
-
-    seriesRef.current = lineSeries;
-
+    // Create initial series based on stored preference
+    if (chartMode === "line") {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: "#FFFFFF",
+        lineWidth: 3,
+        priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+        lineType: 2, // LineType.Curved
+      });
+      seriesRef.current = lineSeries;
+    } else {
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#22C55E",
+        downColor: "#EC4899",
+        borderUpColor: "#22C55E",
+        borderDownColor: "#EC4899",
+        wickUpColor: "#22C55E",
+        wickDownColor: "#EC4899",
+        priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+      });
+      seriesRef.current = candlestickSeries;
+    }
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      // The chart disposes its own price lines; just drop the stale ref.
+      entryPriceLineRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height]);
+
+  // Ref for chartMode to use in effects without adding as dependency
+  const chartModeRef = useRef(chartMode);
+  useEffect(() => {
+    chartModeRef.current = chartMode;
+  }, [chartMode]);
+
+  // Handle chart mode switching — replace series without recreating the chart
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const chart = chartRef.current;
+    const currentData = dataRef.current;
+
+    // Cancel any pending data-update RAF to avoid race with stale formatting
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
+    // Remove existing series
+    if (seriesRef.current) {
+      chart.removeSeries(seriesRef.current);
+      seriesRef.current = null;
+    }
+
+    // Add new series based on current mode
+    if (chartMode === "line") {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: "#FFFFFF",
+        lineWidth: 3,
+        priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+        lineType: 2, // LineType.Curved
+      });
+      seriesRef.current = lineSeries;
+
+      if (currentData.length > 0) {
+        const chartData = currentData.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+        }));
+        lineSeries.setData(chartData);
+      }
+    } else {
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#22C55E",
+        downColor: "#EC4899",
+        borderUpColor: "#22C55E",
+        borderDownColor: "#EC4899",
+        wickUpColor: "#22C55E",
+        wickDownColor: "#EC4899",
+        priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+      });
+      seriesRef.current = candlestickSeries;
+
+      if (currentData.length > 0) {
+        const candlestickData = toCandlestickData(currentData);
+        candlestickSeries.setData(candlestickData);
+      }
+    }
+
+    chart.timeScale().fitContent();
+
+    // Update positions after series switch
+    requestAnimationFrame(() => {
+      if (updatePositionsRef.current) {
+        updatePositionsRef.current();
+      }
+    });
+  }, [chartMode]);  
 
   // Stable updatePositions function using ref to avoid subscription cycles
   const updatePositions = useCallback(() => {
@@ -206,11 +332,20 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
     if (!lastPoint) {
       setBadgeY(null);
       setLabelYs([]);
+      setEntryY(null);
       return;
     }
 
     const y = seriesRef.current.priceToCoordinate(lastPoint.value);
     setBadgeY(y ?? null);
+
+    // Position the entry-price marker label, mirroring the badge logic.
+    if (entryPriceRef.current != null && Number.isFinite(entryPriceRef.current) && seriesRef.current) {
+      const entryCoord = seriesRef.current.priceToCoordinate(entryPriceRef.current);
+      setEntryY(entryCoord ?? null);
+    } else {
+      setEntryY(null);
+    }
 
     const currentPriceLabels = buildPriceLabels(currentData);
     const ys = currentPriceLabels.map((price) => seriesRef.current!.priceToCoordinate(price) ?? -9999);
@@ -234,14 +369,23 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
     rafIdRef.current = requestAnimationFrame(() => {
       if (!seriesRef.current) return;
 
-      const chartData = data.map((point) => ({
-        time: point.time as UTCTimestamp,
-        value: point.value,
-      }));
+      const currentMode = chartModeRef.current;
+      const chartData = currentMode === "line"
+        ? data.map((point) => ({
+            time: point.time as UTCTimestamp,
+            value: point.value,
+          }))
+        : toCandlestickData(data);
 
       seriesRef.current.setData(chartData);
       chartRef.current?.timeScale().fitContent();
-      
+
+      // Notify the parent of the latest live price.
+      const latest = data[data.length - 1]?.value;
+      if (Number.isFinite(latest) && onPriceUpdateRef.current) {
+        onPriceUpdateRef.current(latest as number);
+      }
+
       if (updatePositionsRef.current) {
         updatePositionsRef.current();
       }
@@ -255,6 +399,38 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
       }
     };
   }, [data]);
+
+  // Draw / redraw the entry-price marker line whenever the entryPrice prop changes.
+  useEffect(() => {
+    // Keep the ref in sync so updatePositions can read the current value.
+    entryPriceRef.current = entryPrice ?? null;
+
+    // Remove any existing line first. seriesRef.current may already be null
+    // (e.g. the chart unmounted while a marker was set), so guard the removal.
+    if (entryPriceLineRef.current) {
+      try {
+        seriesRef.current?.removePriceLine(entryPriceLineRef.current);
+      } catch {
+        // Series already disposed; nothing to remove.
+      }
+      entryPriceLineRef.current = null;
+    }
+
+    const series = seriesRef.current;
+    if (series && entryPrice != null && Number.isFinite(entryPrice)) {
+      entryPriceLineRef.current = series.createPriceLine({
+        price: entryPrice,
+        color: "#FACC15",
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: false,
+        title: "",
+      });
+    }
+
+    // Reposition the marker label immediately.
+    updatePositionsRef.current?.();
+  }, [entryPrice]);
 
   useEffect(() => {
     if (!chartRef.current || !chartContainerRef.current) return;
@@ -371,6 +547,14 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
     };
   }, []); // Empty dependency array ensures this runs only once
 
+  const toggleChartMode = useCallback(() => {
+    setChartMode((prev) => {
+      const next: ChartMode = prev === "line" ? "candlestick" : "line";
+      persistChartMode(next);
+      return next;
+    });
+  }, []);
+
   const { isConnected } = useConnectionStatus();
 
   const bgGradient = ASSET_BG[asset] ?? ASSET_BG.XLM;
@@ -391,12 +575,45 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
         title={`${asset}/USD`}
         status={isConnected ? { label: "LIVE", variant: "success" } : { label: "OFFLINE", variant: "default" }}
         action={
-          <>
-            {!isConnected && <ConnectionStatus className="mr-4" />}
+          <div className="flex items-center gap-3">
+            {/* Chart mode toggle */}
+            <button
+              type="button"
+              onClick={toggleChartMode}
+              className="relative flex items-center rounded-full bg-[#1e3a5f]/60 p-0.5 text-xs font-medium transition-colors hover:bg-[#1e3a5f]/80"
+              title={chartMode === "line" ? "Switch to candlestick chart" : "Switch to line chart"}
+              aria-label={chartMode === "line" ? "Switch to candlestick chart" : "Switch to line chart"}
+            >
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all duration-200 ${chartMode === "line" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline-block mr-1">
+                  <path d="M1 13L4 8L7 10L10 3L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Line
+              </span>
+              <span
+                className={`px-2.5 py-1 rounded-full transition-all duration-200 ${chartMode === "candlestick" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline-block mr-1">
+                  <rect x="2" y="5" width="3" height="7" rx="0.5" fill="currentColor"/>
+                  <line x1="3.5" y1="3" x2="3.5" y2="5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                  <line x1="3.5" y1="12" x2="3.5" y2="13" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                  <rect x="7" y="2" width="3" height="6" rx="0.5" fill="currentColor"/>
+                  <line x1="8.5" y1="1" x2="8.5" y2="2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                  <line x1="8.5" y1="8" x2="8.5" y2="10" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                  <rect x="12" y="4" width="3" height="8" rx="0.5" fill="currentColor"/>
+                  <line x1="13.5" y1="2" x2="13.5" y2="4" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                  <line x1="13.5" y1="12" x2="13.5" y2="13" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                </svg>
+                Candle
+              </span>
+            </button>
+            {!isConnected && <ConnectionStatus />}
             <span className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
               {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
             </span>
-          </>
+          </div>
         }
       />
 
@@ -474,6 +691,22 @@ const PriceChart = ({ height = 300, asset = "XLM" }: PriceChartProps) => {
               >
                 ${latestPrice.toFixed(6)}
               </div>
+            </div>
+          )}
+
+          {/* Entry-price marker label, aligned with the dashed price line */}
+          {entryY !== null && entryPrice != null && (
+            <div
+              className="pointer-events-none absolute z-10 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold whitespace-nowrap"
+              style={{
+                left: "8px",
+                top: entryY,
+                transform: "translateY(-50%)",
+                background: "rgba(250,204,21,0.95)",
+                color: "#0a1929",
+              }}
+            >
+              Entry ${entryPrice.toFixed(6)}
             </div>
           )}
 

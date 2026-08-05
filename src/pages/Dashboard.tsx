@@ -33,6 +33,7 @@ import NetworkMismatchCard from '../components/NetworkMismatchCard';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 import { mockUserStats, mockRounds } from "../data/mockData";
+import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
@@ -158,7 +159,7 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
-
+const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
@@ -166,6 +167,20 @@ const Dashboard = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+
+  // Latest live price from the chart, held in a ref to avoid re-renders on every tick.
+  const currentPriceRef = useRef<number | null>(null);
+  // Price that was live when the user's prediction succeeded; marks the chart.
+  const [entryPrice, setEntryPrice] = useState<number | null>(null);
+
+  const handlePriceUpdate = useCallback((price: number) => {
+    currentPriceRef.current = price;
+  }, []);
+
+  // Clear the entry marker whenever the active round changes.
+  useEffect(() => {
+    setEntryPrice(null);
+  }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -575,8 +590,8 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
-                <PriceChart height={280} asset={normalizedAsset} />
+<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+                <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
               {isWalletConnected && (
                 <RecentActivity
@@ -616,7 +631,10 @@ const Dashboard = () => {
         onPredictionError={() => setOptimisticPrediction(prev => prev ? { ...prev, status: 'FAILED' } : null)}
         onSuccess={(txHash: string) => {
           console.log("Prediction confirmed on-chain. TxHash:", txHash);
-          setOptimisticPrediction(null);
+setOptimisticPrediction(null);
+          if (currentPriceRef.current !== null) {
+            setEntryPrice(currentPriceRef.current);
+          }
           void fetchStats();
           void fetchActivities();
         }}

@@ -95,12 +95,17 @@ describe('StatsCard', () => {
 
     it('renders rank progress bar mock', () => {
       renderCard();
+      // Rank/XP section now renders RankProgressBar component
+      expect(screen.getByText(/Analyst/i)).toBeInTheDocument();
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
       expect(screen.getByText('Rank')).toBeInTheDocument();
       expect(screen.getByText('Analyst')).toBeInTheDocument();
     });
 
     it('renders experience points in mock', () => {
       renderCard();
+      // XP is now displayed via RankProgressBar component
+      expect(screen.getByText(/1500 XP/i)).toBeInTheDocument();
       expect(screen.getByText('Experience')).toBeInTheDocument();
       expect(screen.getByText('1500 XP')).toBeInTheDocument();
     });

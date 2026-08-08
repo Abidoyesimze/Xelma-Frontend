@@ -6,6 +6,7 @@ import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
+import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -23,7 +24,7 @@ interface BetModalProps {
   onPredictionError?: () => void;
 }
 
-type Step = 'confirm' | 'wallet_required' | 'preparing' | 'signing' | 'submitting' | 'syncing' | 'success' | 'error';
+type ModalView = 'confirm' | 'wallet_required';
 type PredictionMode = 'direction' | 'precision';
 
 const PRICE_MIN = 0.0001;
@@ -66,11 +67,11 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const balance = useWalletStore((s) => s.balance);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const initialStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+  // Shared transaction status machine (preparing → signing → submitting → syncing)
+  const tx = useTxStatusMachine();
 
-  const [step, setStep] = useState<Step>(initialStep);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const initialView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+  const [view, setView] = useState<ModalView>(initialView);
   const [isConnecting, setIsConnecting] = useState(false);
   const [mode, setMode] = useState<PredictionMode>(predictionData?.isLegend ? 'precision' : 'direction');
   const [direction, setDirection] = useState<'UP' | 'DOWN'>(predictionData?.direction ?? 'UP');
@@ -88,7 +89,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   // Auto-fetch fee estimate when the confirm step is active.
   // Uses a params-key guard to avoid re-fetching on every stake keystroke.
   useEffect(() => {
-    if (step !== 'confirm' || !publicKey || !isConnected) return;
+    if (view !== 'confirm' || tx.step !== 'idle' || !publicKey || !isConnected) return;
 
     const paramsKey = `${mode}:${direction}:${stake}:${exactPrice}`;
     if (estimateParamsRef.current === paramsKey) return;
@@ -146,7 +147,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     run();
 
     return () => { cancelled = true; };
-  }, [step, publicKey, isConnected, mode, direction, stake, exactPrice]);
+  }, [view, tx.step, publicKey, isConnected, mode, direction, stake, exactPrice]);
 
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [prevPredictionData, setPrevPredictionData] = useState(predictionData);
@@ -166,10 +167,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
     if (isOpen) {
-      const targetStep = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
-      setStep(targetStep);
-      setErrorMsg('');
-      setTxHash('');
+      const targetView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+      setView(targetView);
+      tx.reset();
       setPrevPredictionData(predictionData);
       setMode(predictionData?.isLegend ? 'precision' : 'direction');
       setDirection(predictionData?.direction ?? 'UP');
@@ -184,6 +184,32 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     }
   }
 
+  if (!isOpen || !predictionData) return null;
+
+  const handleConnectAndAuth = async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+      // Read post-connect state directly from the store to avoid stale closure values
+      const { status, publicKey: pk } = useWalletStore.getState();
+      const { isAuthenticated: ia } = useAuthStore.getState();
+      if (status === 'connected' && pk && ia) {
+        setView('confirm');
+      }
+    } catch (err) {
+      console.error('Connection failed:', err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleStakeChange = (value: string) => {
+    setStake(value);
+    setFormError('');
+    const error = validateStake(value, balance);
+    setInlineStakeError(error || '');
+  };
+
   const handleConfirm = async () => {
     const stakeError = validateStake(stake, balance);
     const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
@@ -193,11 +219,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       return;
     }
 
+    // Acquire the in-flight lock — blocks double-submits while a transaction
+    // is preparing / signing / submitting.
+    if (!tx.start()) return;
+
     setFormError('');
-    setStep('preparing');
+    setView('confirm');
 
     if (!publicKey || !isConnected) {
-      setStep('wallet_required');
+      tx.reset();
+      setView('wallet_required');
       return;
     }
     // Immediately show preparing state before starting async transaction
@@ -222,6 +253,8 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         setStep(s);
       };
 
+    try {
+      const updateStatus = tx.updateStatus;
       let result;
       const isPrecision = mode === 'precision';
 
@@ -242,9 +275,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         );
       }
 
-      setTxHash(result.txHash);
-      setStep('syncing');
-
       // Submit to backend
       await predictionsApi.submit({
         direction,
@@ -253,13 +283,18 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         exactPrice: mode === 'precision' ? exactPrice : undefined,
       });
 
-      setStep('success');
+      tx.succeed(result.txHash);
       if (onSuccess) {
         onSuccess(result.txHash);
       }
     } catch (err: unknown) {
       const error = err as Error;
       console.error('Prediction submission error:', error);
+      tx.fail(error.message || 'An unexpected error occurred');
+    }
+  };
+
+  const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
       setErrorMsg(error.message || 'An unexpected error occurred');
       setStep('error');
       if (onPredictionError) {
@@ -336,7 +371,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           ✕
         </button>
 
-        {step === 'wallet_required' && (
+        {view === 'wallet_required' && (
           <div className="text-center py-4">
             <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
             <p className="text-gray-400 text-sm mb-6">
@@ -352,7 +387,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           </div>
         )}
 
-        {step === 'confirm' && (
+        {view === 'confirm' && tx.step === 'idle' && (
           <div>
             <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
 
@@ -569,6 +604,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
             <button
               onClick={handleConfirm}
+              disabled={!isConnected || feeEstimateStatus === 'failed' || tx.isInFlight}
               disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
@@ -577,6 +613,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           </div>
         )}
 
+        {isTimelineVisible && (
+          <TxStatusTimeline
+            step={tx.step}
+            txHash={tx.txHash}
+            errorMessage={tx.errorMessage}
+            successTitle="Prediction Submitted!"
+            successMessage="Your prediction has been successfully written on-chain and registered."
+            onRetry={handleConfirm}
+            onDone={onClose}
+          />
         {(step === 'preparing' || step === 'signing' || step === 'submitting' || step === 'syncing') && (
           <div className="text-center py-8">
             <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>

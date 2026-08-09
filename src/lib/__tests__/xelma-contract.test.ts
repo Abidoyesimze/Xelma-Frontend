@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { place_bet, place_precision_prediction } from '../xelma-contract';
+import { inspectSorobanState, place_bet, place_precision_prediction } from '../xelma-contract';
 import { signTransaction } from '@stellar/freighter-api';
 
 // Mock the Freighter API
@@ -60,6 +60,7 @@ vi.mock('@stellar/stellar-sdk', async () => {
     Contract: MockContract as any,
     Address: MockAddress as any,
     nativeToScVal: vi.fn().mockReturnValue({}),
+    scValToNative: vi.fn((value) => value),
     rpc: {
       Server: MockServer as any,
     },
@@ -119,7 +120,29 @@ describe('Smart Contract Bindings', () => {
   it('throws error when user rejects Freighter signature', async () => {
     vi.mocked(signTransaction).mockResolvedValue({ error: 'User rejected' } as any);
 
-    await expect(place_bet(userPublicKey, 'UP', '10')).rejects.toThrow(/Freighter signing rejected/);
+    // The wallet adapter surfaces the wallet's own rejection message.
+    await expect(place_bet(userPublicKey, 'UP', '10')).rejects.toThrow(/User rejected/);
+  });
+
+  it('inspectSorobanState returns rpc snapshot for read-only calls', async () => {
+    mockSimulateTransaction
+      .mockResolvedValueOnce({ results: [{ retval: { direction: 'UP' } }] })
+      .mockResolvedValueOnce({ results: [{ retval: { state: 'open' } }] });
+
+    const result = await inspectSorobanState(userPublicKey);
+
+    expect(result.source).toBe('rpc');
+    expect(result.position).toEqual({ direction: 'UP' });
+    expect(result.round).toEqual({ state: 'open' });
+  });
+
+  it('inspectSorobanState returns mock fallback when RPC fails', async () => {
+    mockSimulateTransaction.mockRejectedValue(new Error('RPC unavailable'));
+
+    const result = await inspectSorobanState(userPublicKey);
+
+    expect(result.source).toBe('mock');
+    expect(result.error).toMatch(/RPC unavailable/);
   });
 
   it('invokes onStatus callback with preparing/signing/submitting', async () => {

@@ -1,3 +1,7 @@
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { freighterAdapter } from './wallets';
+
+
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
@@ -10,6 +14,43 @@ const rpcServer = new rpc.Server(RPC_URL);
 export interface ContractTransactionResult {
   txHash: string;
   ledger: number;
+}
+
+/** Fee and resource breakdown from a Soroban simulation. */
+export interface FeeEstimate {
+  /** Network base fee (stroops → XLM). */
+  baseFee: string;
+  /** Minimum resource fee charged by Soroban (stroops → XLM). */
+  resourceFee: string;
+  /** Total fee = baseFee + resourceFee (XLM). */
+  totalFee: string;
+  /** CPU instructions consumed by the contract call. */
+  instructions: string;
+  /** Ledger read bytes. */
+  readBytes: string;
+  /** Ledger write bytes. */
+  writeBytes: string;
+  /** Prepared transaction XDR for previewing the unsigned payload. */
+  xdr: string;
+  /** Prepared transaction hash for previewing the payload. */
+  hash: string;
+  /** Network passphrase used to build the preview transaction. */
+  networkPassphrase: string;
+}
+
+export interface SorobanInspectorSnapshot {
+  source: 'rpc' | 'mock';
+  status?: 'ok' | 'error';
+  position?: unknown;
+  round?: unknown;
+  error?: string;
+  inspectedAt?: string;
+}
+
+const STROOPS_PER_XLM = 10_000_000;
+
+function stroopsToXlm(stroops: number): string {
+  return (stroops / STROOPS_PER_XLM).toFixed(7);
 }
 
 /**
@@ -44,6 +85,55 @@ async function pollTransaction(txHash: string): Promise<ContractTransactionResul
   }
 
   throw new Error('Transaction polling timed out after 60 seconds.');
+}
+
+export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
+  try {
+    const account = await rpcServer.getAccount(userAddress);
+    const contractInstance = new Contract(XELMA_CONTRACT_ID);
+
+    const positionTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_position', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const roundTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_round', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const [positionSimulation, roundSimulation] = await Promise.all([
+      rpcServer.simulateTransaction(positionTx),
+      rpcServer.simulateTransaction(roundTx),
+    ]);
+
+    const positionResult = 'results' in positionSimulation && Array.isArray(positionSimulation.results)
+      ? positionSimulation.results[0]?.retval
+      : undefined;
+    const roundResult = 'results' in roundSimulation && Array.isArray(roundSimulation.results)
+      ? roundSimulation.results[0]?.retval
+      : undefined;
+
+    return {
+      source: 'rpc',
+      status: 'ok',
+      position: positionResult,
+      round: roundResult,
+      inspectedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    return {
+      source: 'mock',
+      status: 'error',
+      error: err instanceof Error ? err.message : 'RPC unavailable',
+    };
+  }
 }
 
 /**
@@ -143,6 +233,125 @@ async function executeContractCall(
 }
 
 /**
+ * Build, simulate, and prepare a Soroban transaction — returns a fee/resource
+ * estimate without requiring a Freighter signature. This lets the UI show
+ * costs before the user approves in their wallet.
+ *
+ * Throws on simulation failure so the caller can display a clear error.
+ */
+async function simulateContractCall(
+  userAddress: string,
+  functionName: string,
+  args: xdr.ScVal[],
+): Promise<FeeEstimate> {
+  let account;
+  try {
+    account = await rpcServer.getAccount(userAddress);
+  } catch {
+    throw new Error('Stellar account not found or unfunded on Testnet. Please fund your address first.');
+  }
+
+  const contractInstance = new Contract(XELMA_CONTRACT_ID);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contractInstance.call(functionName, ...args))
+    .setTimeout(60)
+    .build();
+
+  let simulation;
+  try {
+    simulation = await rpcServer.simulateTransaction(tx);
+  } catch {
+    throw new Error('Simulation failed. Network error or contract invocation rejected.');
+  }
+
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const errorMsg = 'error' in simulation ? simulation.error : 'Simulation was not successful';
+    throw new Error(`Simulation failed: ${errorMsg}`);
+  }
+
+  // Apply simulation footprint & resource fee to the tx
+  const preparedTx = await rpcServer.prepareTransaction(tx);
+
+  const simDetails = (simResult as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } });
+  const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
+  const cost = simDetails.cost;
+  const baseFeeStroops = Number(BASE_FEE) || 100;
+  const resourceFeeStroops = 'minResourceFee' in simulation && simulation.minResourceFee
+    ? Number(simulation.minResourceFee)
+    : 0;
+  const cost = 'cost' in simulation ? simulation.cost : undefined;
+
+  const hashValue = typeof preparedTx.hash === 'function' ? preparedTx.hash() : null;
+  const hash: string = !hashValue
+    ? ''
+    : Buffer.isBuffer(hashValue)
+      ? hashValue.toString('hex')
+      : String(hashValue);
+
+  const cost = simulation.cost as unknown as Record<string, unknown> | undefined;
+
+  return {
+    baseFee: stroopsToXlm(baseFeeStroops),
+    resourceFee: stroopsToXlm(resourceFeeStroops),
+    totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
+    instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
+    readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
+    writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
+    xdr: preparedTx.toXDR(),
+    hash: preparedTx.hash().toString('hex'),
+    readBytes: '0',
+    writeBytes: '0',
+    xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'
+      ? (preparedTx as { toXDR: () => string }).toXDR()
+      : '',
+    hash,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  };
+}
+
+/**
+ * Estimate fee and resources for an UP/DOWN bet without sending a transaction.
+ */
+export async function estimatePlaceBet(
+  userAddress: string,
+  direction: 'UP' | 'DOWN',
+  stake: string,
+): Promise<FeeEstimate> {
+  const amountStroops = BigInt(Math.round(parseFloat(stake) * 10_000_000));
+  const args = [
+    new Address(userAddress).toScVal(),
+    nativeToScVal(direction, { type: 'symbol' }),
+    nativeToScVal(amountStroops, { type: 'u128' }),
+  ];
+  return simulateContractCall(userAddress, 'place_bet', args);
+}
+
+/**
+ * Estimate fee and resources for a precision / Legend prediction without
+ * sending a transaction.
+ */
+export async function estimatePrecisionPrediction(
+  userAddress: string,
+  direction: 'UP' | 'DOWN',
+  stake: string,
+  exactPrice: string,
+): Promise<FeeEstimate> {
+  const amountStroops = BigInt(Math.round(parseFloat(stake) * 10_000_000));
+  const exactPriceScaled = BigInt(Math.round(parseFloat(exactPrice) * 10_000));
+  const args = [
+    new Address(userAddress).toScVal(),
+    nativeToScVal(direction, { type: 'symbol' }),
+    nativeToScVal(amountStroops, { type: 'u128' }),
+    nativeToScVal(exactPriceScaled, { type: 'u64' }),
+  ];
+  return simulateContractCall(userAddress, 'place_precision_prediction', args);
+}
+
+/**
  * Places a standard UP or DOWN bet on the active round.
  * @param userAddress The public key of the user.
  * @param direction "UP" | "DOWN"
@@ -190,4 +399,19 @@ export async function place_precision_prediction(
   ];
 
   return executeContractCall(userAddress, 'place_precision_prediction', args, onStatus);
+}
+
+/**
+ * Claims pending winnings for the user.
+ * @param userAddress The public key of the user.
+ */
+export async function claim_winnings(
+  userAddress: string,
+  onStatus?: (status: 'preparing' | 'signing' | 'submitting') => void
+): Promise<ContractTransactionResult> {
+  const args = [
+    new Address(userAddress).toScVal(),
+  ];
+
+  return executeContractCall(userAddress, 'claim_winnings', args, onStatus);
 }

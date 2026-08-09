@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
+import { MessageCircle } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useRoundStore, selectActiveChatChannelId } from "../store/useRoundStore";
+import { formatRelativeTime } from "../lib/utils";
+import EmptyState from "./EmptyState";
+import { MODAL_OVERLAY, TRANSITION, TRANSFORM_TRANSITION } from "../utils/motion";
+
+const MAX_MESSAGE_LENGTH = 500;
 
 interface Message {
   id: string;
@@ -26,17 +33,6 @@ function mapApiMessage(msg: ApiMessage): Message {
     content: msg.content,
     timestamp: new Date(msg.createdAt),
   };
-}
-
-function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-  return date.toLocaleDateString();
 }
 
 function getInitials(username: string): string {
@@ -116,6 +112,10 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { isConnected } = useConnectionStatus();
+  // Round-scoped chat channel: derived from the active round so users in
+  // round #42 only see round #42 messages. Falls back to CHAT_CHANNEL_FALLBACK
+  // when there is no active round (issue #185).
+  const channelId = useRoundStore(selectActiveChatChannelId);
 
   const scrollToBottom = (force = false) => {
     if (!messagesContainerRef.current) return;
@@ -181,11 +181,14 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     };
   }, []);
 
-  // Listen for incoming chat:message events via socket
+  // Listen for incoming chat:message events via socket and stay subscribed
+  // to the channel for the active round. When the active round changes, the
+  // cleanup function leaves the previous channel and the next effect run
+  // joins the new one (issue #185).
   useEffect(() => {
     // Ensure socket is connected
     socketService.connect();
-    
+
     const unsubscribe = socketService.onChatMessage((data: ApiMessage) => {
       setMessages((prev) => {
         // De-duplicate: server echoes our own sends back through chat:message
@@ -194,16 +197,18 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
       });
     });
 
-    // Join chat channel
-    socketService.joinChat("general"); // TODO: Use dynamic channel ID
+    // Join this round's chat channel (or the fallback "general" channel
+    // when no active round is available).
+    socketService.joinChat(channelId);
 
     return () => {
       unsubscribe();
+      socketService.leaveChat(channelId);
     };
-  }, []);
+  }, [channelId]);
 
   const handleSendMessage = () => {
-    if (!inputValue.trim() || !isConnected) return;
+    if (!inputValue.trim() || !isConnected || inputValue.length > MAX_MESSAGE_LENGTH) return;
 
     // Emit chat:send to the server instead of pushing to local state.
     // The server will broadcast chat:message back to all clients in the
@@ -231,13 +236,13 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
-        className={`md:hidden fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
+        className={`md:hidden fixed inset-0 bg-black/50 z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
       />
 
       {/* Mobile Toggle Button */}
       <button
-        className="md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
+        className={`md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40 ${TRANSFORM_TRANSITION}`}
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
       >
@@ -271,7 +276,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
       {/* Sidebar / Bottom Sheet */}
       <aside
-        className={`chat-sidebar fixed flex flex-col z-60 transition-transform duration-300 border-r
+        className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
         bg-white dark:bg-[#1f2937] border-gray-100 dark:border-gray-800
         
         /* Desktop: Side Drawer */
@@ -303,6 +308,14 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 bg-[#FAFAFA] dark:bg-gray-900 mx-2.5 p-3.5 rounded-xl overscroll-contain"
         >
+          {messages.length === 0 && (
+            <EmptyState
+              icon={<MessageCircle className="h-10 w-10 text-[#2C4BFD] dark:text-xelma-blue" />}
+              title="No messages yet"
+              description="Be the first to say something in the chat."
+              className="min-h-[160px] border-none bg-transparent backdrop-blur-none"
+            />
+          )}
           {messages.map((message) => (
             <div
               key={message.id}
@@ -317,7 +330,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
                     {message.username}
                   </span>
                   <span className="font-['DM_Sans'] font-normal text-xs text-[#9B9B9B] dark:text-gray-400">
-                    {formatTimestamp(message.timestamp)}
+                    {formatRelativeTime(message.timestamp)}
                   </span>
                 </div>
                 <p className="font-['DM_Sans'] font-normal text-sm text-[#4D4D4D] dark:text-gray-300 text-wrap wrap-break-word">
@@ -340,6 +353,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
             <textarea
               ref={textareaRef}
               rows={1}
+              maxLength={MAX_MESSAGE_LENGTH}
               className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-[#292D32] dark:text-gray-200 placeholder-[#9B9B9B] resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
                 !isConnected ? 'opacity-50' : ''
               }`}
@@ -351,15 +365,27 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               aria-label="Message input"
             />
             <button
-              className={`flex items-center justify-center min-w-[36px] w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer transition-all duration-200 hover:opacity-90 hover:scale-105 shrink-0 ${
-                !isConnected ? 'opacity-50 cursor-not-allowed' : ''
+              className={`flex items-center justify-center min-w-[36px] w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer hover:opacity-90 hover:scale-105 shrink-0 ${TRANSITION} ${
+                !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              disabled={!isConnected}
+              disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
               onClick={handleSendMessage}
               aria-label="Send message"
             >
               <SendIcon />
             </button>
+          </div>
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            {inputValue.length > MAX_MESSAGE_LENGTH && (
+              <span className="text-xs text-red-500 dark:text-red-400">
+                Message too long (max {MAX_MESSAGE_LENGTH} characters)
+              </span>
+            )}
+            <span className={`text-xs ml-auto ${
+              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-red-500 dark:text-red-400' : 'text-[#9B9B9B] dark:text-gray-400'
+            }`}>
+              {inputValue.length}/{MAX_MESSAGE_LENGTH}
+            </span>
           </div>
         </div>
       </aside>

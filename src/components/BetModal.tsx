@@ -4,7 +4,6 @@ import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
-import { txUrl } from '../lib/explorer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 
@@ -162,7 +161,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     setFeeEstimate(null);
     setFeeEstimateStatus('idle');
     setFeeEstimateError(null);
-    estimateParamsRef.current = '';
   }
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
@@ -180,11 +178,15 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       setFeeEstimate(null);
       setFeeEstimateStatus('idle');
       setFeeEstimateError(null);
-      estimateParamsRef.current = '';
     }
   }
 
-  if (!isOpen || !predictionData) return null;
+  // Reset estimate params ref when modal closes or prediction data changes
+  useEffect(() => {
+    if (!isOpen || predictionData !== prevPredictionData) {
+      estimateParamsRef.current = '';
+    }
+  }, [isOpen, predictionData, prevPredictionData]);
 
   const handleConnectAndAuth = async () => {
     setIsConnecting(true);
@@ -232,7 +234,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       return;
     }
     // Immediately show preparing state before starting async transaction
-    setStep('preparing');
+    tx.updateStatus('preparing');
     // Yield to the event loop so the UI can update before awaiting the contract call
     await new Promise(resolve => setTimeout(resolve, 0));
     try {
@@ -249,11 +251,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         } as UserPrediction);
       }
 
-      const updateStatus = (s: 'preparing' | 'signing' | 'submitting') => {
-        setStep(s);
-      };
-
-    try {
       const updateStatus = tx.updateStatus;
       let result;
       const isPrecision = mode === 'precision';
@@ -291,26 +288,25 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       const error = err as Error;
       console.error('Prediction submission error:', error);
       tx.fail(error.message || 'An unexpected error occurred');
-    }
-  };
-
-  const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
-      setErrorMsg(error.message || 'An unexpected error occurred');
-      setStep('error');
       if (onPredictionError) {
         onPredictionError();
       }
     }
   };
 
-  const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
-  handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
+  const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
 
+  const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
   const handleConfirmRef = useRef<() => void>(() => {});
-  handleConfirmRef.current = handleConfirm;
+
+  // Update ref values in useEffect to avoid updating during render
+  useEffect(() => {
+    handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
+    handleConfirmRef.current = handleConfirm;
+  }, [handleConfirm]);
 
   useEffect(() => {
-    if (!isOpen || step !== 'confirm') return;
+    if (!isOpen || view !== 'confirm') return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -331,33 +327,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, step]);
+  }, [isOpen, view]);
 
   if (!isOpen || !predictionData) return null;
-
-  const handleConnectAndAuth = async () => {
-    setIsConnecting(true);
-    try {
-      await connect();
-      // Read post-connect state directly from the store to avoid stale closure values
-      const { status, publicKey: pk } = useWalletStore.getState();
-      const { isAuthenticated: ia } = useAuthStore.getState();
-      if (status === 'connected' && pk && ia) {
-        setStep('confirm');
-      }
-    } catch (err) {
-      console.error('Connection failed:', err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleStakeChange = (value: string) => {
-    setStake(value);
-    setFormError('');
-    const error = validateStake(value, balance);
-    setInlineStakeError(error || '');
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -623,73 +595,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             onRetry={handleConfirm}
             onDone={onClose}
           />
-        {(step === 'preparing' || step === 'signing' || step === 'submitting' || step === 'syncing') && (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-            <h3 className="text-lg font-semibold">
-              {step === 'preparing' && 'Preparing Transaction...'}
-              {step === 'signing' && 'Waiting for Freighter Signature...'}
-              {step === 'submitting' && 'Submitting Transaction to Network...'}
-              {step === 'syncing' && 'Syncing Prediction to Backend...'}
-            </h3>
-            <p className="text-gray-400 text-sm mt-2">
-              Please check your wallet interface if prompted.
-            </p>
-          </div>
-        )}
-
-        {step === 'success' && (
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-              ✓
-            </div>
-            <h3 className="text-xl font-bold mb-2">Prediction Submitted!</h3>
-            <p className="text-gray-400 text-sm mb-6">
-              Your prediction has been successfully written on-chain and registered.
-            </p>
-            <div className="space-y-3">
-              <a
-                href={txUrl(txHash)}
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-semibold transition"
-              >
-                View on StellarExpert
-              </a>
-              <button
-                onClick={onClose}
-                className="w-full py-3 border border-gray-800 hover:bg-gray-850 rounded-xl font-semibold transition"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'error' && (
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-              ✕
-            </div>
-            <h3 className="text-xl font-bold mb-2">Transaction Failed</h3>
-            <p className="text-red-400 text-sm mb-6 px-4 break-words">
-              {errorMsg}
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={handleConfirm}
-                className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition"
-              >
-                Retry
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full py-3 border border-gray-800 hover:bg-gray-850 rounded-xl font-semibold transition"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>

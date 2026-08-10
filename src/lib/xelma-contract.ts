@@ -289,8 +289,8 @@ async function simulateContractCall(
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
     instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
-    readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
-    writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
+    readBytes: (cost as unknown as { readBytes?: string | number })?.readBytes ? String((cost as unknown as { readBytes: string | number }).readBytes) : '0',
+    writeBytes: (cost as unknown as { writeBytes?: string | number })?.writeBytes ? String((cost as unknown as { writeBytes: string | number }).writeBytes) : '0',
     xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'
       ? (preparedTx as { toXDR: () => string }).toXDR()
       : '',

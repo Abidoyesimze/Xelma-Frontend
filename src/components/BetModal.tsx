@@ -577,7 +577,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             <button
               onClick={handleConfirm}
               disabled={!isConnected || feeEstimateStatus === 'failed' || tx.isInFlight}
-              disabled={!isConnected}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
               Confirm

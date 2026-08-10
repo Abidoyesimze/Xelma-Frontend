@@ -77,9 +77,12 @@ export const LeaderboardResponseSchema = z.union([
  * Validation error class for API schema mismatches
  */
 export class ApiValidationError extends Error {
+    endpoint: string;
+    schemaErrors: z.ZodError;
+
     constructor(
-        public endpoint: string,
-        public schemaErrors: z.ZodError,
+        endpoint: string,
+        schemaErrors: z.ZodError,
         message?: string
     ) {
         super(
@@ -87,6 +90,8 @@ export class ApiValidationError extends Error {
             `API response validation failed for ${endpoint}. ` +
             `Schema mismatch: ${schemaErrors.issues.map(i => i.path.join('.') + ' - ' + i.message).join(', ')}`
         );
+        this.endpoint = endpoint;
+        this.schemaErrors = schemaErrors;
         this.name = 'ApiValidationError';
     }
 }

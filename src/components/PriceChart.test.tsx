@@ -40,6 +40,7 @@ describe('PriceChart', () => {
   const mockChartApi = {
     remove: vi.fn(),
     addSeries: vi.fn(),
+    removeSeries: vi.fn(),
     timeScale: vi.fn(() => ({
       subscribeVisibleLogicalRangeChange: vi.fn(),
       unsubscribeVisibleLogicalRangeChange: vi.fn(),
@@ -51,6 +52,7 @@ describe('PriceChart', () => {
   const mockSeriesApi = {
     setData: vi.fn(),
     priceToCoordinate: vi.fn(() => 100),
+    applyOptions: vi.fn(),
   };
 
   const mockUnsubscribe = vi.fn();

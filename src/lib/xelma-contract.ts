@@ -1,7 +1,3 @@
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { freighterAdapter } from './wallets';
-
-
 import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
@@ -275,10 +271,6 @@ async function simulateContractCall(
   // Apply simulation footprint & resource fee to the tx
   const preparedTx = await rpcServer.prepareTransaction(tx);
 
-  const simDetails = (simResult as { minResourceFee?: string | number; cost?: { cpuInsns?: string | number; readBytes?: string | number; writeBytes?: string | number } });
-  const baseFeeStroops = Number(BASE_FEE) || 100;
-  const resourceFeeStroops = simDetails.minResourceFee ? Number(simDetails.minResourceFee) : 0;
-  const cost = simDetails.cost;
   const baseFeeStroops = Number(BASE_FEE) || 100;
   const resourceFeeStroops = 'minResourceFee' in simulation && simulation.minResourceFee
     ? Number(simulation.minResourceFee)
@@ -292,19 +284,13 @@ async function simulateContractCall(
       ? hashValue.toString('hex')
       : String(hashValue);
 
-  const cost = simulation.cost as unknown as Record<string, unknown> | undefined;
-
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
     instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
-    readBytes: cost?.readBytes ? String(cost.readBytes) : '0',
-    writeBytes: cost?.writeBytes ? String(cost.writeBytes) : '0',
-    xdr: preparedTx.toXDR(),
-    hash: preparedTx.hash().toString('hex'),
-    readBytes: '0',
-    writeBytes: '0',
+    readBytes: (cost as unknown as { readBytes?: string | number })?.readBytes ? String((cost as unknown as { readBytes: string | number }).readBytes) : '0',
+    writeBytes: (cost as unknown as { writeBytes?: string | number })?.writeBytes ? String((cost as unknown as { writeBytes: string | number }).writeBytes) : '0',
     xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'
       ? (preparedTx as { toXDR: () => string }).toXDR()
       : '',

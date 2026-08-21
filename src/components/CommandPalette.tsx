@@ -79,13 +79,6 @@ export default function CommandPalette() {
     return () => window.clearTimeout(reset);
   }, [query]);
 
-  // Reset selected index when query changes (done inline in onChange)
-  const handleQueryChange = (value: string) => {
-    setQuery(value);
-    setSelectedIndex(0);
-  };
-
-
   // Scroll selected item into view
   useEffect(() => {
     if (!isOpen) return;

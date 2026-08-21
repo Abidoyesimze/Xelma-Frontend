@@ -23,7 +23,8 @@ function setRoundState(state: Partial<typeof mockRoundStore>) {
 }
 
 function getCurrentStateLabel() {
-  const container = screen.getByText('Current State:').parentElement;
+  const elements = screen.getAllByText('Current State:');
+  const container = elements[0].parentElement;
   return container?.querySelector('span:last-child');
 }
 
@@ -48,7 +49,7 @@ describe('RoundTimeline', () => {
     render(<RoundTimeline />);
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
-    expect(screen.getByText(/Current State:/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Current State:/i).length).toBeGreaterThan(0);
     const upcomingElements = screen.getAllByText(/Upcoming/i);
     expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Upcoming/i).length).toBeGreaterThan(0);
@@ -63,7 +64,7 @@ describe('RoundTimeline', () => {
     expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
-    const currentStateContainer = screen.getByText('Current State:').closest('div');
+    const currentStateContainer = screen.getAllByText('Current State:')[0].closest('div');
     expect(currentStateContainer).toBeTruthy();
     expect(currentStateContainer && currentStateContainer.textContent).toMatch(/Upcoming/i);
   });

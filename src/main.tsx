@@ -20,10 +20,6 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       },
     });
   });
-        console.warn('Service worker registration failed:', error)
-      }
-    })
-  })
 }
 
 createRoot(document.getElementById('root')!).render(

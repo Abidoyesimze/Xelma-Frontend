@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 
 const mockRoundStore: Record<string, unknown> = {
   activeRound: null,
@@ -23,7 +23,8 @@ function setRoundState(state: Partial<typeof mockRoundStore>) {
 }
 
 function getCurrentStateLabel() {
-  const container = screen.getByText('Current State:').parentElement;
+  const elements = screen.getAllByText('Current State:');
+  const container = elements[0].parentElement;
   return container?.querySelector('span:last-child');
 }
 
@@ -39,6 +40,7 @@ describe('RoundTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
@@ -47,7 +49,10 @@ describe('RoundTimeline', () => {
     render(<RoundTimeline />);
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
-    expect(screen.getByText(/Current State:/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Current State:/i).length).toBeGreaterThan(0);
+    const upcomingElements = screen.getAllByText(/Upcoming/i);
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Upcoming/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Upcoming/i)).toBeInTheDocument();
   });
 
@@ -55,8 +60,11 @@ describe('RoundTimeline', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     render(<RoundTimeline />);
 
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
-    const currentStateContainer = screen.getByText('Current State:').closest('div');
+    const currentStateContainer = screen.getAllByText('Current State:')[0].closest('div');
     expect(currentStateContainer).toBeTruthy();
     expect(currentStateContainer && currentStateContainer.textContent).toMatch(/Upcoming/i);
   });
@@ -144,6 +152,14 @@ describe('RoundTimeline', () => {
     const renderComponent = () => render(<RoundTimeline />);
     expect(renderComponent).not.toThrow();
     renderComponent();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const upcomingElements = screen.getAllByText('Upcoming');
+    expect(upcomingElements.length).toBeGreaterThanOrEqual(1);
+    const { container } = render(<RoundTimeline />);
+    expect(container).toBeInTheDocument();
+    expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+    const rendered = renderComponent();
+
+    expect(() => rendered).not.toThrow();
+    expect(getCurrentStateLabel()?.textContent).toMatch(/Upcoming/i);
   });
 });

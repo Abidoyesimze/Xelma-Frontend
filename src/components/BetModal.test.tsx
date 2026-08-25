@@ -26,6 +26,36 @@ let placeBetImpl: () => Promise<{ txHash: string }> = async () => ({ txHash: 'TX
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: (...args: any[]) => placeBetImpl(),
   place_precision_prediction: (...args: any[]) => placeBetImpl(),
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100',
+    resourceFee: '0.0000500',
+    totalFee: '0.0000600',
+    instructions: '100000',
+    readBytes: '512',
+    writeBytes: '256',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100',
+    resourceFee: '0.0000500',
+    totalFee: '0.0000600',
+    instructions: '100000',
+    readBytes: '512',
+    writeBytes: '256',
+    baseFee: '0.00001',
+    resourceFee: '0.00005',
+    totalFee: '0.00006',
+    instructions: '1000000',
+    readBytes: '500',
+    writeBytes: '200',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00006',
+    totalFee: '0.00007',
+    instructions: '1200000',
+    readBytes: '600',
+    writeBytes: '300',
+  }),
 }));
 
 vi.mock('../lib/api-client', () => ({
@@ -117,6 +147,19 @@ describe('BetModal — transaction pending state (#163)', () => {
     expect(onSuccess).toHaveBeenCalledWith('TXABC');
     const link = screen.getByRole('link', { name: /view on stellarexpert/i });
     expect(link).toHaveAttribute('href', expect.stringContaining('TXABC'));
+  });
+
+  it('shows truncated tx hash on the success screen', async () => {
+    placeBetImpl = async () => ({ txHash: '0123456789abcdef' });
+    renderOpen();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Tx: 012345…abcdef')).toBeInTheDocument();
+    });
+    const link = screen.getByRole('link', { name: /view on stellarexpert/i });
+    expect(link).toHaveAttribute('href', expect.stringContaining('0123456789abcdef'));
   });
 
   it('shows error state with Retry button when transaction fails', async () => {

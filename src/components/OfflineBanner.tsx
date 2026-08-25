@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { RefreshCw, WifiOff, X } from 'lucide-react';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import { useState } from 'react';
+import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
 
 /**
- * Global offline banner displayed at the top of the app when the connection is lost.
- * It is dismissible and provides a "Reconnect" button that triggers a forced
- * reconnection via socketService.forceReconnect().
+ * STUBBED for contributor rebuild — keep reconnect + dismiss behavior.
+ * Rebuild as a dark terminal alert strip (not a crude full-width red bar).
  */
 export const OfflineBanner = () => {
   const { isDisconnected, reconnect } = useConnectionStatus();
@@ -22,6 +24,7 @@ function OfflineAlert({ reconnect }: { reconnect: () => void }) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) {
+  if (!isDisconnected || dismissed) {
     return null;
   }
 
@@ -61,6 +64,31 @@ function OfflineAlert({ reconnect }: { reconnect: () => void }) {
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
+      className="fixed inset-x-0 top-0 z-50 border-b border-rose-500/40 bg-[#0A0F1A]/95 px-4 py-3 backdrop-blur"
+      role="alert"
+    >
+      <ContributorTaskPlaceholder
+        title="Rebuild Offline Banner"
+        issueHint="Replace this placeholder with a polished terminal alert: clear offline copy, Reconnect action, and dismiss. Keep reconnect() and dismiss behavior."
+      >
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={reconnect}
+            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-gray-200 hover:bg-white/5"
+          >
+            Reconnect
+          </button>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-gray-200 hover:bg-white/5"
+            aria-label="Dismiss"
+          >
+            Dismiss
+          </button>
+        </div>
+      </ContributorTaskPlaceholder>
     </div>
   );
-}
+};

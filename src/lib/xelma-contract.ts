@@ -26,6 +26,21 @@ export interface FeeEstimate {
   readBytes: string;
   /** Ledger write bytes. */
   writeBytes: string;
+  /** Prepared transaction XDR for previewing the unsigned payload. */
+  xdr: string;
+  /** Prepared transaction hash for previewing the payload. */
+  hash: string;
+  /** Network passphrase used to build the preview transaction. */
+  networkPassphrase: string;
+}
+
+export interface SorobanInspectorSnapshot {
+  source: 'rpc' | 'mock';
+  status?: 'ok' | 'error';
+  position?: unknown;
+  round?: unknown;
+  error?: string;
+  inspectedAt?: string;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -66,6 +81,55 @@ async function pollTransaction(txHash: string): Promise<ContractTransactionResul
   }
 
   throw new Error('Transaction polling timed out after 60 seconds.');
+}
+
+export async function inspectSorobanState(userAddress: string): Promise<SorobanInspectorSnapshot> {
+  try {
+    const account = await rpcServer.getAccount(userAddress);
+    const contractInstance = new Contract(XELMA_CONTRACT_ID);
+
+    const positionTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_position', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const roundTx = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contractInstance.call('get_round', new Address(userAddress).toScVal()))
+      .setTimeout(60)
+      .build();
+
+    const [positionSimulation, roundSimulation] = await Promise.all([
+      rpcServer.simulateTransaction(positionTx),
+      rpcServer.simulateTransaction(roundTx),
+    ]);
+
+    const positionResult = 'results' in positionSimulation && Array.isArray(positionSimulation.results)
+      ? positionSimulation.results[0]?.retval
+      : undefined;
+    const roundResult = 'results' in roundSimulation && Array.isArray(roundSimulation.results)
+      ? roundSimulation.results[0]?.retval
+      : undefined;
+
+    return {
+      source: 'rpc',
+      status: 'ok',
+      position: positionResult,
+      round: roundResult,
+      inspectedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    return {
+      source: 'mock',
+      status: 'error',
+      error: err instanceof Error ? err.message : 'RPC unavailable',
+    };
+  }
 }
 
 /**
@@ -199,23 +263,39 @@ async function simulateContractCall(
     throw new Error('Simulation failed. Network error or contract invocation rejected.');
   }
 
-  if ('error' in simulation && simulation.error) {
-    throw new Error(`Simulation failed: ${simulation.error}`);
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    const errorMsg = 'error' in simulation ? simulation.error : 'Simulation was not successful';
+    throw new Error(`Simulation failed: ${errorMsg}`);
   }
 
-  // Prepare applies the simulation footprint & resource fee to the tx
-  await rpcServer.prepareTransaction(tx);
+  // Apply simulation footprint & resource fee to the tx
+  const preparedTx = await rpcServer.prepareTransaction(tx);
 
   const baseFeeStroops = Number(BASE_FEE) || 100;
-  const resourceFeeStroops = simulation.minResourceFee ? Number(simulation.minResourceFee) : 0;
+  const resourceFeeStroops = 'minResourceFee' in simulation && simulation.minResourceFee
+    ? Number(simulation.minResourceFee)
+    : 0;
+  const cost = 'cost' in simulation ? simulation.cost : undefined;
+
+  const hashValue = typeof preparedTx.hash === 'function' ? preparedTx.hash() : null;
+  const hash: string = !hashValue
+    ? ''
+    : Buffer.isBuffer(hashValue)
+      ? hashValue.toString('hex')
+      : String(hashValue);
 
   return {
     baseFee: stroopsToXlm(baseFeeStroops),
     resourceFee: stroopsToXlm(resourceFeeStroops),
     totalFee: stroopsToXlm(baseFeeStroops + resourceFeeStroops),
-    instructions: simulation.cost?.cpuInsns ? String(simulation.cost.cpuInsns) : '0',
-    readBytes: simulation.cost?.readBytes ? String(simulation.cost.readBytes) : '0',
-    writeBytes: simulation.cost?.writeBytes ? String(simulation.cost.writeBytes) : '0',
+    instructions: cost?.cpuInsns ? String(cost.cpuInsns) : '0',
+    readBytes: (cost as unknown as { readBytes?: string | number })?.readBytes ? String((cost as unknown as { readBytes: string | number }).readBytes) : '0',
+    writeBytes: (cost as unknown as { writeBytes?: string | number })?.writeBytes ? String((cost as unknown as { writeBytes: string | number }).writeBytes) : '0',
+    xdr: typeof (preparedTx as { toXDR?: () => string }).toXDR === 'function'
+      ? (preparedTx as { toXDR: () => string }).toXDR()
+      : '',
+    hash,
+    networkPassphrase: NETWORK_PASSPHRASE,
   };
 }
 

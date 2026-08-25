@@ -178,7 +178,6 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
 
   // Clear the entry marker whenever the active round changes.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEntryPrice(null);
   }, [activeRoundId]);
 
@@ -262,7 +261,6 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchStats();
     void fetchActivities();
   }, [fetchStats, fetchActivities]);
@@ -289,7 +287,6 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshInspector();
   }, [refreshInspector]);
 
@@ -645,7 +642,6 @@ setOptimisticPrediction(null);
         isOpen={Boolean(resolvedRound)}
         onClose={dismissResolvedRound}
         result={endRoundResult}
-        playResolveSound={roundSoundEnabled}
       />
       <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
     </div>

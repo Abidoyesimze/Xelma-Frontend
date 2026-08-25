@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
@@ -212,7 +212,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     setInlineStakeError(error || '');
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     const stakeError = validateStake(stake, balance);
     const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
 
@@ -292,7 +292,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         onPredictionError();
       }
     }
-  };
+  }, [balance, direction, exactPrice, isConnected, mode, onPending, onPredictionError, onSuccess, publicKey, stake, tx]);
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
 

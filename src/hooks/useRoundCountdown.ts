@@ -9,7 +9,7 @@ import { useEffect, useState, useRef } from 'react';
  */
 export function useRoundCountdown(
   endTime: string | number | Date
-): { formattedTime: string; isExpired: boolean; timeLeftMs: number } {
+): { formattedTime: string; isExpired: boolean; timeLeftMs: number; initialTimeLeftMs: number } {
   // Resolve end time to a timestamp in ms.
   const resolveTimestamp = (t: string | number | Date): number => {
     if (t instanceof Date) return t.getTime();
@@ -23,11 +23,16 @@ export function useRoundCountdown(
     const diff = targetTimestamp - Date.now();
     return diff > 0 ? diff : 0;
   });
+  const [initialTimeLeftMs, setInitialTimeLeftMs] = useState(() => {
+    const diff = targetTimestamp - Date.now();
+    return diff > 0 ? diff : 1;
+  });
 
   const intervalRef = useRef<number | null>(null);
+  const previousTargetRef = useRef(targetTimestamp);
 
   const format = (ms: number): string => {
-    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const totalSec = Math.max(0, Math.floor((ms + 500) / 1000));
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
@@ -35,23 +40,23 @@ export function useRoundCountdown(
     if (h > 0) {
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
-    // When less than an hour, omit hour component.
+    // When less than an hour, show a zero-padded minute value.
     return `${pad(m)}:${pad(s)}`;
   };
 
   useEffect(() => {
-    // Clear any existing interval when endTime changes.
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
     }
 
     const tick = () => {
       const remaining = targetTimestamp - Date.now();
+      if (previousTargetRef.current !== targetTimestamp) {
+        previousTargetRef.current = targetTimestamp;
+        setInitialTimeLeftMs(remaining > 0 ? remaining : 1);
+      }
       setTimeLeftMs(remaining > 0 ? remaining : 0);
     };
-
-    // Initial tick to handle immediate expiration.
-    tick();
 
     intervalRef.current = window.setInterval(tick, 1000);
 
@@ -66,5 +71,5 @@ export function useRoundCountdown(
   const isExpired = timeLeftMs <= 0;
   const formattedTime = isExpired ? '00:00' : format(timeLeftMs);
 
-  return { formattedTime, isExpired, timeLeftMs };
+  return { formattedTime, isExpired, timeLeftMs, initialTimeLeftMs };
 }

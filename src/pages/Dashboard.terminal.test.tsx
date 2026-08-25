@@ -21,11 +21,42 @@ vi.mock('../lib/api-client', () => ({
     submit: vi.fn(),
     getUserHistory: vi.fn().mockResolvedValue([]),
   },
+  educationApi: {
+    getTip: vi.fn().mockResolvedValue(null),
+    getGuides: vi.fn().mockResolvedValue([]),
+  },
+  statsApi: {
+    getNetworkStats: vi.fn().mockResolvedValue(null),
+    getUserStats: vi.fn().mockResolvedValue(null),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, status: number) {
+      super(message);
+      this.name = 'ApiError';
+      Object.assign(this, { status });
+    }
+  },
 }));
 
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: vi.fn(),
   place_precision_prediction: vi.fn(),
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00005',
+    totalFee: '0.00006',
+    instructions: '1000000',
+    readBytes: '500',
+    writeBytes: '200',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00006',
+    totalFee: '0.00007',
+    instructions: '1200000',
+    readBytes: '600',
+    writeBytes: '300',
+  }),
 }));
 
 describe('Dashboard Terminal & Round Flows', () => {
@@ -39,6 +70,7 @@ describe('Dashboard Terminal & Round Flows', () => {
     useWalletStore.setState({
       status: 'connected',
       publicKey: 'GTEST123',
+      balance: '1000 XLM',
     });
     useAuthStore.setState({
       isAuthenticated: true,
@@ -180,10 +212,10 @@ describe('Dashboard Terminal & Round Flows', () => {
         </div>
       );
 
-      // Verify round cards render asset headings
-      expect(screen.getByText('BTC/USD')).toBeInTheDocument();
-      expect(screen.getByText('ETH/USD')).toBeInTheDocument();
-      expect(screen.getByText('XLM/USD')).toBeInTheDocument();
+      // Verify round cards render asset headings (multiple rounds per asset)
+      expect(screen.getAllByText('BTC/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ETH/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('XLM/USD').length).toBeGreaterThanOrEqual(1);
 
       // Verify round details and pool statistics
       expect(screen.getByText(/reference \$67,420/i)).toBeInTheDocument();
@@ -211,8 +243,8 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('No active round')).toBeInTheDocument();
-      expect(screen.getByText(/check back soon for the next prediction round/i)).toBeInTheDocument();
+      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
+      expect(screen.getByText(/learn how the game works or refresh to check for new rounds/i)).toBeInTheDocument();
     });
 
     it('triggers refresh action on clicking refresh button', async () => {

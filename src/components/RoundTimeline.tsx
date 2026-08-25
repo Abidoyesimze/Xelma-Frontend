@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 
@@ -8,7 +8,7 @@ interface TimelineState {
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Next Round', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
@@ -93,9 +93,33 @@ const RoundTimeline: React.FC = () => {
   const isDisconnected = currentState === 'disconnected';
   const isCurrentLive = currentState === 'live';
   const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
+  const currentStateLabel =
+    currentState === 'upcoming'
+      ? 'Upcoming'
+      : currentState === 'disconnected'
+        ? 'Unknown'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : TIMELINE_STATES.find((s) => s.key === currentState)?.label || currentState;
+
+  const prevStateRef = useRef(currentState);
+  const [stateAnnouncement, setStateAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (prevStateRef.current !== currentState) {
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${currentStateLabel}`);
+      }, 0);
+      prevStateRef.current = currentState;
+      return () => clearTimeout(timer);
+    }
+  }, [currentState, currentStateLabel]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {stateAnnouncement}
+      </div>
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -239,8 +263,7 @@ const RoundTimeline: React.FC = () => {
               }
             `}
           >
-            {TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
-              'Unknown'}
+            {currentStateLabel || 'Unknown'}
           </span>
         </div>
 

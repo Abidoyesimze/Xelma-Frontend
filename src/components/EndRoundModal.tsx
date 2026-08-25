@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 
 interface EndRoundModalProps {
   isOpen: boolean;
@@ -8,16 +9,197 @@ interface EndRoundModalProps {
     isWin?: boolean;
     amount?: number;
     tip?: string;
+    asset?: string;
+    direction?: 'UP' | 'DOWN' | string;
   };
+  playResolveSound?: boolean;
 }
 
-export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {
+export default function EndRoundModal({ isOpen, onClose, result, playResolveSound = false }: EndRoundModalProps) {
   const {
     isWin = false,
     amount = 0,
     tip = 'Stay tuned for the next round.',
+    asset = 'BTC',
+    direction = 'UP',
   } = result ?? {};
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const continueButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShare = async () => {
+    setIsSharing(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context not available');
+
+      // 1. Draw sleek gradient background
+      const grad = ctx.createRadialGradient(600, 315, 100, 600, 315, 700);
+      grad.addColorStop(0, '#1e293b'); // light slate
+      grad.addColorStop(1, '#0f172a'); // dark slate
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1200, 630);
+
+      // 2. Draw subtle grid background/dots for tech aesthetic
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      for (let x = 30; x < 1200; x += 40) {
+        for (let y = 30; y < 630; y += 40) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 3. Draw premium border
+      ctx.strokeStyle = isWin ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)';
+      ctx.lineWidth = 16;
+      ctx.strokeRect(8, 8, 1184, 614);
+
+      // 4. Logo / Brand Watermark
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px "Outfit", "Inter", sans-serif';
+      ctx.fillText('✦ XELMA', 80, 80);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '500 20px "Outfit", "Inter", sans-serif';
+      ctx.fillText('Trustless Prediction Markets', 270, 78);
+
+      // 5. Result Banner Title
+      ctx.fillStyle = isWin ? '#10b981' : '#f43f5e';
+      ctx.font = 'bold 30px "Outfit", "Inter", sans-serif';
+      ctx.fillText('ROUND COMPLETED', 80, 180);
+
+      // 6. Huge PnL Display
+      const pnlText = `${isWin ? '+' : '-'}$${Math.abs(amount).toFixed(2)}`;
+      ctx.fillStyle = isWin ? '#34d399' : '#fb7185';
+      ctx.font = '900 120px "Outfit", "Inter", sans-serif';
+      ctx.fillText(pnlText, 80, 310);
+
+      // 7. Stat blocks details (Asset & Direction)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 2;
+      
+      const drawBlock = (bx: number, by: number, bw: number, bh: number, br: number) => {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(bx, by, bw, bh, br);
+        } else {
+          ctx.rect(bx, by, bw, bh);
+        }
+        ctx.fill();
+        ctx.stroke();
+      };
+
+      // Draw Asset block
+      drawBlock(80, 380, 320, 140, 16);
+      // Draw Direction block
+      drawBlock(440, 380, 320, 140, 16);
+      // Draw Watermark block on right
+      drawBlock(800, 380, 320, 140, 16);
+
+      // Text in Asset block
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = 'bold 18px "Outfit", "Inter", sans-serif';
+      ctx.fillText('ASSET PAIR', 110, 420);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px "Outfit", "Inter", sans-serif';
+      ctx.fillText(`${asset}/USD`, 110, 475);
+
+      // Text in Direction block
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = 'bold 18px "Outfit", "Inter", sans-serif';
+      ctx.fillText('YOUR PREDICTION', 470, 420);
+      ctx.fillStyle = direction.toUpperCase() === 'UP' ? '#34d399' : '#fb7185';
+      ctx.font = 'bold 36px "Outfit", "Inter", sans-serif';
+      ctx.fillText(direction.toUpperCase() === 'UP' ? '📈 UP' : '📉 DOWN', 470, 475);
+
+      // Text in Watermark block
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = 'bold 18px "Outfit", "Inter", sans-serif';
+      ctx.fillText('PLATFORM', 830, 420);
+      ctx.fillStyle = '#38bdf8'; // light blue / cyan
+      ctx.font = 'bold 32px "Outfit", "Inter", sans-serif';
+      ctx.fillText('xelma.network', 830, 475);
+
+      // 8. Footer Watermark at the bottom center
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '500 18px "Outfit", "Inter", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Decentralized & Secure on Stellar Soroban', 1120, 560);
+
+      // Convert to blob and share/download
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          throw new Error('Canvas conversion failed');
+        }
+
+        const file = new File([blob], `xelma-round-${asset}-${Date.now()}.png`, { type: 'image/png' });
+
+        // Web Share API
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Xelma Round Result',
+              text: `I just made ${isWin ? 'a profit of +' : 'a prediction of -'}$${Math.abs(amount).toFixed(2)} on ${asset} on Xelma!`,
+            });
+            setIsSharing(false);
+            return;
+          } catch (shareErr) {
+            console.warn('Web Share failed, falling back to download:', shareErr);
+          }
+        }
+
+        // Fallback: download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `xelma-round-${asset}-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsSharing(false);
+      }, 'image/png');
+
+    } catch (err) {
+      console.error('Error generating share card:', err);
+      setIsSharing(false);
+    }
+  };
+
+
+  useEffect(() => {
+    if (!isOpen || !playResolveSound || document.hidden) return;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+
+    const audioContext = new AudioContextCtor();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = isWin ? 880 : 220;
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.04, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.22);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.24);
+
+    return () => {
+      oscillator.disconnect();
+      gain.disconnect();
+      void audioContext.close();
+    };
+  }, [isOpen, isWin, playResolveSound]);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,10 +223,17 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/90 backdrop-blur-md motion-safe:animate-fade-in z-40" />
+        <Dialog.Overlay className={`fixed inset-0 bg-black/90 backdrop-blur-md z-40 ${MODAL_OVERLAY}`} />
 
-        <Dialog.Content aria-label={isWin ? 'Spectacular Win!' : 'Tough Break'} className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
-          <div className="w-full max-w-md motion-safe:animate-scale-in">
+        <Dialog.Content
+          aria-label={isWin ? 'Spectacular Win!' : 'Tough Break'}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            continueButtonRef.current?.focus();
+          }}
+        >
+          <div className={`w-full max-w-md ${MODAL_CONTENT}`}>
             <div className={`relative overflow-hidden rounded-2xl border ${
               isWin ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'
             }`}>
@@ -116,8 +305,32 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
                   </div>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className={`w-full py-4 mb-3 rounded-xl font-bold text-lg active:scale-95 transition-all outline-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 border flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isWin
+                      ? 'border-emerald-200 bg-white hover:bg-emerald-100/50 text-emerald-800 focus-visible:ring-emerald-300 focus-visible:ring-offset-emerald-50'
+                      : 'border-rose-200 bg-white hover:bg-rose-100/50 text-rose-800 focus-visible:ring-rose-300 focus-visible:ring-offset-rose-50'
+                  }`}
+                >
+                  {isSharing ? (
+                    <>
+                      <span className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full" />
+                      Generating Card...
+                    </>
+                  ) : (
+                    <>
+                      <span>Share Result</span>
+                      <span aria-hidden>🔗</span>
+                    </>
+                  )}
+                </button>
+
                 <Dialog.Close asChild>
                   <button
+                    ref={continueButtonRef}
                     type="button"
                     className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all outline-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 ${
                       isWin

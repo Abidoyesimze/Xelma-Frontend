@@ -1,4 +1,3 @@
-import React from "react";
 import { useRoundCountdown } from "../hooks/useRoundCountdown";
 
 interface CountdownTimerProps {

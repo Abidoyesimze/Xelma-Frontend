@@ -86,6 +86,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
+          {/* eslint-disable-next-line react-hooks/purity -- computing absolute endTime from relative seconds prop */}
           <CountdownTimer endTime={new Date(Date.now() + round.closesInSeconds * 1000)} />
         </div>
       </div>

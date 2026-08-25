@@ -251,7 +251,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
       {/* Mobile Toggle Button */}
       <button
-        className="md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
+        className="md:hidden fixed right-4 bottom-28 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
       >

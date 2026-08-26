@@ -6,6 +6,7 @@ import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
+import PredictionHelpTooltip from './PredictionHelpTooltip';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -303,7 +304,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   useEffect(() => {
     handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
     handleConfirmRef.current = handleConfirm;
-  }, [handleConfirm]);
+  });
 
   useEffect(() => {
     if (!isOpen || view !== 'confirm') return;
@@ -361,7 +362,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
         {view === 'confirm' && tx.step === 'idle' && (
           <div>
-            <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold" id="prediction-modal-title">Confirm Prediction</h3>
+              <PredictionHelpTooltip id="bet-modal-prediction-help-popover" />
+            </div>
 
             <p className="mb-4 text-xs text-gray-500" aria-hidden="true">
               <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">U</kbd>

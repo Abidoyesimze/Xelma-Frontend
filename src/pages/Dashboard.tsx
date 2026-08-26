@@ -635,6 +635,30 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
         )}
       </div>
 
+      {/* Mobile sticky predict action bar — visible only on small screens */}
+      {!isLoading && isRoundActive && (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0F1A]/95 backdrop-blur-md border-t border-[#2C4BFD]/20 px-4 py-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          data-testid="mobile-predict-bar"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setPendingPrediction({
+                direction: 'UP',
+                stake: '',
+                isLegend: false,
+              });
+              setIsBetModalOpen(true);
+            }}
+            className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px]"
+          >
+            Make Prediction
+          </button>
+        </div>
+      )}
+
       <BetModal
         isOpen={isBetModalOpen}
         onClose={() => {
